@@ -1,29 +1,74 @@
 import { Stack } from "expo-router";
 import "../global.css";
-import { useColorScheme, View } from "react-native";
-import { StatusBar } from 'expo-status-bar';
-import ToastManager from 'toastify-react-native'
+import { useColorScheme, View, Appearance } from "react-native";
+import ToastManager from "toastify-react-native";
+import { useThemeStore } from "@/store/themeStore";
+import { useEffect } from "react";
+import NetInfo from "@react-native-community/netinfo";
+import { processQueue } from "@/api/syncQueue";
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import api from "@/api/api";
+
+GoogleSignin.configure({
+  webClientId: "66605174066-8pj0dsug9c2r8lnjqp5p52d0pdv74qjh.apps.googleusercontent.com",
+});
 
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme()
-  const backcolor = colorScheme == 'light' ? 'white' : '#111827'
-  
+  const theme = useThemeStore((state) => state.theme);
+  Appearance.setColorScheme(theme);
+  const colorScheme = useColorScheme();
+  const backcolor = colorScheme == "light" ? "white" : "#111827";
+  const statusColor = colorScheme == "light" ? "dark" : "light";
+
+  useEffect(() => {
+    // 1️⃣ Run immediately on startup
+    processQueue();
+
+    // 2️⃣ Subscribe to network changes
+    const unsubscribe = NetInfo.addEventListener(async (state) => {
+      if (state.isConnected) {
+        console.log("🔌 Back online! Syncing offline queue...");
+        await processQueue();
+      }
+    });
+    api.get("/health").catch((err) => {
+      console.log("Error fetching profile on app start:", err.message);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   return (
     <View style={{ flex: 1, backgroundColor: backcolor }}>
-      <StatusBar style="auto" />
       <Stack>
-        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal/[type]" options={{
-          headerShown: false,
-          presentation: 'transparentModal',
-          animation: "fade_from_bottom",
-          statusBarBackgroundColor: backcolor,
-        }} />
+        <Stack.Screen
+          name="(auth)"
+          options={{ headerShown: false, statusBarStyle: statusColor }}
+        />
+        <Stack.Screen
+          name="(tabs)"
+          options={{ headerShown: false, statusBarStyle: statusColor }}
+        />
+        <Stack.Screen
+          name="admin"
+          options={{
+            headerShown: false,
+            statusBarStyle: statusColor,
+            animation: "slide_from_right",
+          }}
+        />
+        <Stack.Screen
+          name="expenseModal/[type]"
+          options={{
+            headerShown: false,
+            presentation: "transparentModal",
+            animation: "fade_from_bottom",
+            statusBarStyle: statusColor,
+          }}
+        />
       </Stack>
       <ToastManager useModal={false} theme={colorScheme} />
     </View>
-
   );
 }

@@ -11,33 +11,33 @@ export default function RootLayout() {
     <View style={{ flex: 1, backgroundColor: '#111827' }}>
       <Tabs screenOptions={{
         tabBarShowLabel: false,
-        tabBarStyle: { backgroundColor: backcolor, minHeight: 70, position: "absolute", borderTopWidth: 0.3, borderColor: colorScheme == 'dark' ? '#6366f1' : '#3b82f6' },
+        tabBarStyle: { backgroundColor: backcolor, minHeight: 70, position: "absolute", borderTopWidth: 0.3, borderColor: '#4f46e5' },
         tabBarActiveTintColor: 'white'
       }}>
-        <Tabs.Screen name="home/index" options={{
+        <Tabs.Screen name="home" options={{
           title: 'Home',
           headerShown: false,
           tabBarShowLabel: true,
           tabBarLabel: ({ focused, color }) => (
-            <Text className="text-xs mt-1" style={{ color: focused ? colorScheme == 'dark'? '#6366f1':'#3b82f6' : color }}>Home</Text>
+            <Text className="text-xs mt-1" style={{ color: focused ? '#6366f1': color }}>Home</Text>
           ),
-          tabBarIcon: ({ focused, color }) => <Feather size={23} name="home" color={focused ? colorScheme == 'dark'? '#6366f1':'#3b82f6' : color} />,
+          tabBarIcon: ({ focused, color }) => <Feather size={23} name="home" color={focused ? '#6366f1' : color} />,
         }} />
-        <Tabs.Screen name="history/index" options={{
+        <Tabs.Screen name="history" options={{
           title: "History", headerShown: false,
           tabBarShowLabel: true,
           tabBarLabel: ({ focused, color }) => (
-            <Text className="text-xs mt-1" style={{ color: focused ? colorScheme == 'dark'? '#6366f1':'#3b82f6' : color }}>Insights</Text>
+            <Text className="text-xs mt-1" style={{ color: focused ? '#6366f1': color }}>Insights</Text>
           ),
-          tabBarIcon: ({ focused, color }) => <Feather size={23} name="bar-chart-2" color={focused ? colorScheme == 'dark'? '#6366f1':'#3b82f6' : color} />,
+          tabBarIcon: ({ focused, color }) => <Feather size={23} name="bar-chart-2" color={focused ? '#6366f1': color} />,
         }} />
         <Tabs.Screen name="profile" options={{
           title: "Profile", headerShown: false,
           tabBarShowLabel: true,
           tabBarLabel: ({ focused, color }) => (
-            <Text className="text-xs mt-1" style={{ color: focused ? colorScheme == 'dark'? '#6366f1':'#3b82f6' : color }}>Profile</Text>
+            <Text className="text-xs mt-1" style={{ color: focused ? '#6366f1':color }}>Profile</Text>
           ),
-          tabBarIcon: ({ focused, color }) => <Feather size={23} name="user" color={focused ? colorScheme == 'dark'? '#6366f1':'#3b82f6' : color} />,
+          tabBarIcon: ({ focused, color }) => <Feather size={23} name="user" color={focused ?'#6366f1' : color} />,
         }} />
       </Tabs>
     </View>

@@ -1,41 +1,88 @@
-import { View, Text, TouchableOpacity, FlatList, Dimensions, useColorScheme } from 'react-native';
-import { useState } from 'react';
-import { useExpenseStore } from '../../../store/store';
+import { View, Text, FlatList, Dimensions, useColorScheme, RefreshControl } from 'react-native';
+import { use, useEffect, useState } from 'react';
+import { useExpenseStore } from '../../../store/expenseStore';
 import { LineChart } from 'react-native-chart-kit';
-import { Link } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import api from '@/api/api';
+import { ActivityIndicator } from 'react-native-paper';
+import { useAuthStore } from '@/store/authStore';
+import { Redirect } from 'expo-router';
+import ExpenseItem from '@/app/expenseModal/ExpenseItem';
+import DeleteModal from '../home/DeleteModal';
 
 type Transaction = {
+  _id: string;
   amount: number;
-  day: string; // e.g., "Sun Apr 06 2025"
+  date: string; // e.g., "Sun Apr 06 2025"
   details: string;
-  id: string;
-  quantity: string;
   type: string;
-  unit: string;
+  category: string;
+  isSynced: string | null;
 }
 // Screen width for chart
 const screenWidth = Dimensions.get('window').width;
 
 export default function TransactionHistory() {
-  const { expenses } = useExpenseStore();
-  const [filter, setFilter] = useState<'weekly' | 'monthly' | 'yearly'>('monthly');
-  const [reportRange, setReportRange] = useState<'monthly' | 'quarterly' | 'custom'>('monthly');
+  const user = useAuthStore((state) => state.role);
+
+  if (user === 'admin') {
+    return <Redirect href="/history/adminAllUsersView" />;
+  }
+  const { setCachedExpenses, removeExpense, LastSyncedAt, cachedExpenses } = useExpenseStore();
+  // const expense = useExpenseStore((state) => state.expenses);
+  const existingIds = new Set(cachedExpenses.map(exp => exp._id));
+  const [expenses, setExpenses] = useState<Transaction[]>(cachedExpenses);
+
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [refreshing, setRefreshing] = useState(false)
+  const [loading, setLoading] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  useEffect(() => {
+    setExpenses(cachedExpenses)
+  }, [cachedExpenses]);
+  const handleTransactionPress = (transaction: Transaction) => {
+    setSelectedTransaction(
+      selectedTransaction?._id === transaction._id ? null : transaction
+    );
+  }
+  const handleDelete = async () => {
+    if (selectedTransaction) {
+      try {
+        const response = await api.delete(`/expense/${selectedTransaction._id}`)
+        setExpenses(prev => prev.filter((item) => item._id !== selectedTransaction._id))
+        removeExpense(selectedTransaction)
+
+      } catch (error) {
+        console.error(error);
+      }
+    }
+    setShowDeleteModal(false)
+  }
 
   // Process transactions for monthly segregation and graph data
   const getMonthlyData = () => {
     const monthlyData: { [key: string]: Transaction[] } = {};
     expenses.slice().reverse().forEach((transaction: Transaction) => {
-      const date = new Date(transaction.day);
-      const monthYear = `${date.toLocaleString('default', { month: 'long' })} ${date.getFullYear()}`;
+      const date = new Date(transaction.date);
+      const month = date.toLocaleString('default', { month: 'long' });
+      const year = date.getFullYear();
+
+      const monthYear = `${month.substring(0,3)} ${year}`;
+
       if (!monthlyData[monthYear]) {
         monthlyData[monthYear] = [];
       }
       monthlyData[monthYear].push(transaction);
     });
+    console.log(monthlyData);
+
     return monthlyData;
   };
 
   const monthlyData = getMonthlyData();
+
 
   // Graph data (total debit and credit per month)
   const getGraphData = () => {
@@ -46,19 +93,31 @@ export default function TransactionHistory() {
     Object.keys(monthlyData).forEach((monthYear) => {
       labels.push(monthYear); // month & year for label
       const transactions = monthlyData[monthYear];
-      const totalDebit = transactions
-        .filter((t) => t.type === 'debit')
-        .reduce((sum, t) => sum + t.amount, 0);
-      const totalCredit = transactions
-        .filter((t) => t.type === 'credit')
-        .reduce((sum, t) => sum + t.amount, 0);
-      debitData.push(totalDebit);
-      creditData.push(totalCredit);
-    });
+      let debitTotal = 0;
+      let creditTotal = 0;
 
+      for (const t of transactions) {
+        if (t.type === "debit") {
+          debitTotal += t.amount;
+        } else if (t.type === "credit") {
+          creditTotal += t.amount;
+        }
+      }
+
+      debitData.push(debitTotal);
+      creditData.push(creditTotal);
+
+    });
+    // 👇 Add dummy starting values to avoid dot-on-axis issue
+    console.log(debitData);
+    console.log(creditData);
+
+    if (debitData.length > 0) debitData.unshift(0);
+    if (creditData.length > 0) creditData.unshift(0);
+    labels.unshift(""); // empty label for the first dummy point
     return { labels, debitData, creditData };
   };
-  const colorScheme=useColorScheme()
+  const colorScheme = useColorScheme()
 
   const { labels, debitData, creditData } = getGraphData();
 
@@ -66,78 +125,81 @@ export default function TransactionHistory() {
     backgroundGradientFrom: '#1E293B',
     backgroundGradientTo: '#1E293B',
     decimalPlaces: 0,
-    color: (opacity = 1) => `${colorScheme=='dark'?`rgba(255, 255, 255, ${opacity})`:`rgba(0, 0, 0, ${opacity})`}`,
-    labelColor: (opacity = 1) => `${colorScheme=='dark'?`rgba(255, 255, 255, ${opacity})`:`rgba(0, 0, 0, ${opacity})`}`,
+    fromZero: true,
+    
+    color: (opacity = 1) => `${colorScheme == 'dark' ? `rgba(255, 255, 255, ${opacity})` : `rgba(0, 0, 0, ${opacity})`}`,
+    labelColor: (opacity = 1) => `${colorScheme == 'dark' ? `rgba(255, 255, 255, ${opacity})` : `rgba(0, 0, 0, ${opacity})`}`,
     propsForDots: {
       r: '5',
       strokeWidth: '1',
       stroke: '#ffa726',
     },
   };
+  const fetchExpenses = async () => {
+
+    if (loading || !hasMore) return;
+
+    setLoading(true);
+    setRefreshing(true)
+    try {
+      const limit = 10;
+      const response = await api.get(`/expense/get-expense/?offset=${offset}&limit=${limit}`);
+
+      const filteredNew = response.data.expenses.filter((exp: Transaction) => !existingIds.has(exp._id));
+
+      setExpenses(prev => [...prev, ...filteredNew].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
+      setCachedExpenses(expenses.slice(0, 21), response.data.totalBalance)
+      setOffset(prev => prev + limit);
+      setHasMore(response.data.hasMore);
+    } catch (err) {
+      console.error('Failed to fetch expenses', err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false)
+    }
+  };
+  useEffect(() => {
+    if (expenses.length < 10) {
+      fetchExpenses()
+    }
+  }, []);
+
   return (
-    <View className="flex-1 dark:bg-gray-900 p-5">
+    <SafeAreaView className="flex-1 dark:bg-gray-900 p-5 pb-20">
       {/* Graph Section */}
-      <View className="p-4 pb-0 rounded-xl mb-6 overflow-hidden" style={{backgroundColor:colorScheme=='dark'?'#1E293B':'white'}}>
-        <Text className="dark:text-white text-lg font-semibold mb-2">Transaction Trends</Text>
+      <View className="p-4 pb-0 rounded-xl mb-6 overflow-hidden" style={{ backgroundColor: colorScheme == 'dark' ? '#1E293B' : 'white' }}>
         {labels.length > 0 ? (
-          <LineChart
-            data={{
-              labels,
-              datasets: [
-                { data: debitData, color: () => '#EF4444' }, // Red for debit
-                { data: creditData, color: () => '#10B981' }, // Green for credit
-              ],
-            }}
-            width={screenWidth * 0.9} // Adjusted for padding
-            height={280}
-            chartConfig={chartConfig}
-            bezier
-            transparent
-            style={{ borderRadius: 16,marginHorizontal:-13}}
-          />
+          <>
+            <Text className="dark:text-white text-lg font-semibold mb-2">Transaction Trends</Text>
+            <LineChart
+              data={{
+                labels,
+                datasets: [
+                  { data: debitData, color: () => '#EF4444' }, // Red for debit
+                  { data: creditData, color: () => '#10B981' }, // Green for credit
+                ],
+              }}
+              width={screenWidth * 0.9} // Adjusted for padding
+              height={280}
+              chartConfig={chartConfig}
+              bezier
+              transparent
+              style={{ borderRadius: 16, marginHorizontal: -13 }}
+            />
+          </>
+
         ) : (
-          <Text className="text-gray-400 text-center">No data available</Text>
+          <Text className="text-gray-600 dark:text-gray-300 font-semibold text-center py-5 text-lg">No data available</Text>
         )}
       </View>
 
-      {/* Filters */}
-      <View className="flex-row justify-between mb-6">
-        {(['weekly', 'monthly', 'yearly'] as const).map((f) => (
-          <TouchableOpacity
-            key={f}
-            className={`py-2 px-4 rounded-lg ${filter === f ? 'bg-indigo-600' : 'bg-gray-800'
-              }`}
-            onPress={() => setFilter(f)}
-          >
-            <Text className="text-white capitalize">{f}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* Report Download */}
-      {/* <View className="mb-6">
-        <Text className="text-white text-lg font-semibold mb-2">Download Report</Text>
-        <View className="flex-row justify-between">
-          {(['monthly', 'quarterly', 'custom'] as const).map((r) => (
-            <TouchableOpacity
-              key={r}
-              className={`py-2 px-4 rounded-lg ${reportRange === r ? 'bg-indigo-600' : 'bg-gray-800'
-                }`}
-              onPress={() => setReportRange(r)}
-            >
-              <Text className="text-white capitalize">{r}</Text>
-            </TouchableOpacity>
-          ))}
-        </View> */}
-      {/* Placeholder for report download action */}
-      {/* <TouchableOpacity className="bg-indigo-600 py-2 px-4 rounded-lg mt-2 self-start">
-          <Text className="text-white">Download</Text>
-        </TouchableOpacity>
-      </View> */}
 
       {/* Transaction List */}
       <FlatList
-        data={Object.keys(monthlyData).sort((a, b) => new Date(b).getTime() - new Date(a).getTime())}
+        data={Object.keys(monthlyData).reverse()}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={fetchExpenses} />
+        }
         renderItem={({ item: monthYear }) => (
           <View className="mb-6">
             <View className='flex-row items-center'>
@@ -147,26 +209,26 @@ export default function TransactionHistory() {
             <FlatList
               data={monthlyData[monthYear]}
               renderItem={({ item }) => (
-                <View className="dark:bg-gray-800 bg-white p-4 rounded-lg mb-2 dark:border-0 border border-gray-200 dark:shadow-none shadow-lg">
-                  <View className="flex-row justify-between">
-                    <Text className="dark:text-white">{item.details} {item.type === 'debit' ? `- ${item.quantity} ${item.unit}` : ""}</Text>
-                    <Text className={item.type === 'debit' ? 'text-red-400' : 'text-green-400'}>
-                      {item.type === 'debit' ? '-' : '+'} ₹{item.amount}
-                    </Text>
-                  </View>
-                  <View className="flex flex-row justify-between items-center mt-1">
-
-                    <Text className="dark:text-gray-400 text-gray-700 text-sm">{item.day}</Text>
-                  </View>
-                </View>
+                <ExpenseItem
+                  item={item}
+                  selectedId={selectedTransaction?._id || null}
+                  type="user"
+                  onSelect={handleTransactionPress}
+                  onDeletePress={() => setShowDeleteModal(true)}
+                />
               )}
-              keyExtractor={(item) => item.id}
+              keyExtractor={(item) => item._id}
             />
           </View>
         )}
         keyExtractor={(item) => item}
         showsVerticalScrollIndicator={false}
+        onEndReached={fetchExpenses}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={loading ? <ActivityIndicator size="large" /> : null}
       />
-    </View>
+      {showDeleteModal && <DeleteModal setShow={setShowDeleteModal} handleDelete={handleDelete} />}
+
+    </SafeAreaView>
   );
 }

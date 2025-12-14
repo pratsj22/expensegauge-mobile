@@ -2,19 +2,17 @@ import { View, Text, SafeAreaView, useColorScheme,Appearance } from 'react-nativ
 import React, { useState } from 'react'
 import { RadioButton } from 'react-native-paper';
 import { Feather, FontAwesome } from '@expo/vector-icons';
-// import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useThemeStore } from '@/store/themeStore';
 
 
 const Theme = () => {
     const colorScheme = useColorScheme();
-    const isDark = colorScheme === 'dark';
-    const [darkMode, setDarkMode] = useState<boolean>(isDark);
-    const [current, setCurrent] = useState(colorScheme);
+    const{setTheme,theme}= useThemeStore()
+    const [current, setCurrent] = useState(theme);
     const applyTheme = async (theme: 'light' | 'dark' | null) => {
         Appearance.setColorScheme(theme);
         setCurrent(theme)
-        
-    //   await AsyncStorage.setItem('theme', theme ?? 'system');
+        setTheme(theme)
     };
     return (
         <SafeAreaView className='dark:bg-gray-900 bg-white' style={{ flex: 1 }}>

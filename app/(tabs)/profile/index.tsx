@@ -1,12 +1,18 @@
+import { useAuthStore } from '@/store/authStore';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { View, Text, Image, ScrollView, Pressable, Switch, useColorScheme, Appearance, TouchableOpacity } from 'react-native';
+import { View, Text, Image, ScrollView, Pressable, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import LogoutModal from './LogoutModal';
 
 const UserProfileScreen: React.FC = () => {
+
+  const router = useRouter()
+  const user = useAuthStore((state) => state.name);
+  const email = useAuthStore((state) => state.email);
+  const [showLogoutModal,setShowLogoutModal]=useState(false);
   
-  const router= useRouter()
   return (
     <SafeAreaView className='dark:bg-gray-900 bg-white' style={{ flex: 1 }}>
       <ScrollView className="px-6 pt-10" contentContainerStyle={{ paddingBottom: 32 }}>
@@ -15,8 +21,8 @@ const UserProfileScreen: React.FC = () => {
             source={{ uri: 'https://i.pravatar.cc/150?img=12' }}
             className="w-24 h-24 rounded-full mb-3"
           />
-          <Text className="text-xl font-bold text-gray-900 dark:text-white">Mahendra Johnson</Text>
-          <Text className="text-sm text-gray-500 dark:text-gray-400">mahendra@email.com</Text>
+          <Text className="text-xl font-bold text-gray-900 dark:text-white">{user}</Text>
+          <Text className="text-sm text-gray-500 dark:text-gray-400">{email}</Text>
         </View>
 
         <View className='mt-10'>
@@ -26,23 +32,22 @@ const UserProfileScreen: React.FC = () => {
           </Text>
 
           <View className=" p-2 mb-6">
-            <Pressable className="flex-row justify-between items-center border-t dark:border-gray-600 border-gray-300 dark:active:bg-gray-800 active:bg-gray-100" onPress={()=>router.navigate('/profile/theme')}>
+            <Pressable className="flex-row justify-between items-center border-t dark:border-gray-600 border-gray-300 dark:active:bg-gray-800 active:bg-gray-100" onPress={() => router.navigate('/profile/theme')}>
               <Text className="text-base text-gray-700 dark:text-gray-200 py-6">Change Theme</Text>
               <Text className="text-base text-gray-500 dark:text-gray-300 py-6 px-1"><Feather name='chevron-right' size={15} /></Text>
             </Pressable>
-            <Pressable className="flex-row justify-between items-center border-t dark:border-gray-600 border-gray-300 dark:active:bg-gray-800 border-b active:bg-gray-100" onPress={()=>router.navigate('/profile/changePassword')}>
+            <Pressable className="flex-row justify-between items-center border-t dark:border-gray-600 border-gray-300 dark:active:bg-gray-800 border-b active:bg-gray-100" onPress={() => router.navigate('/profile/changePassword')}>
               <Text className="text-base text-gray-700 dark:text-gray-200 py-6">Change Password</Text>
               <Text className="text-base text-gray-500 dark:text-gray-300 py-6 px-1"><Feather name='chevron-right' size={15} /></Text>
             </Pressable>
-            <TouchableOpacity className="py-6">
+            <TouchableOpacity className="py-6" onPress={()=> setShowLogoutModal(true)}>
               <Text className="text-base text-red-600 dark:text-red-400 font-semibold">
                 Log Out
               </Text>
             </TouchableOpacity>
-
           </View>
         </View>
-
+        {showLogoutModal && <LogoutModal setShow={setShowLogoutModal} />}
       </ScrollView>
     </SafeAreaView>
   );

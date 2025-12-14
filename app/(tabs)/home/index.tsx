@@ -1,92 +1,148 @@
-import { Link, useLocalSearchParams, useRouter } from "expo-router";
-import { FlatList, Text, TouchableOpacity, View } from "react-native";
+import { Link, Redirect, useRouter } from "expo-router";
+import { FlatList, RefreshControl, Text, TouchableOpacity, useColorScheme, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useExpenseStore } from '../../../store/store'
-import { useState } from "react";
+import { useExpenseStore } from '../../../store/expenseStore'
+import { useEffect, useState } from "react";
 import { FontAwesome } from '@expo/vector-icons';
+import { useAuthStore } from "@/store/authStore";
+import ExpenseItem from "@/app/expenseModal/ExpenseItem";
+import DeleteModal from "./DeleteModal";
+import api from "@/api/api";
+
+type Transaction = {
+  _id: string;
+  amount: number;
+  date: string;
+  details: string;
+  type: string;
+  category: string;
+  isSynced: string | null
+};
 
 export default function Index() {
+  const { role } = useAuthStore()
+  if (role === 'admin') {
+    return <Redirect href="/(tabs)/home/adminView" />;
+  }
+  const { setCachedExpenses, removeExpense, LastSyncedAt, cachedExpenses, totalBalance } = useExpenseStore();
+  const [expenses, setExpenses] = useState<Transaction[]>(cachedExpenses);
 
-  const { expenses, balance } = useExpenseStore();
-  const [selectedTransaction, setSelectedTransaction] = useState('');
+  const user = useAuthStore((state) => state.name);
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [refreshing, setRefreshing] = useState(false)
+  const [hasMore, setHasMore] = useState(true);
+
+
+  useEffect(() => {
+    setExpenses(cachedExpenses)
+  }, [cachedExpenses])
   const router = useRouter();
-  const handleTransactionPress = (transaction: string) => {
+  const handleTransactionPress = (transaction: Transaction) => {
     setSelectedTransaction(
-      selectedTransaction === transaction ? '' : transaction
+      selectedTransaction?._id === transaction._id ? null : transaction
     );
   }
+  const handleDelete = async () => {
+    if (selectedTransaction) {
+      try {
+        const response = await api.delete(`/expense/${selectedTransaction._id}`)
+        setExpenses(prev => prev.filter((item) => item._id !== selectedTransaction._id))
+        removeExpense(selectedTransaction)
+
+      } catch (error) {
+        console.error(error);
+      }
+    }
+    setShowDeleteModal(false)
+  }
+  const colorScheme = useColorScheme();
+
+  // const network = useNetworkState()
+
+  const fetchExpenses = async () => {
+    // console.log("hellodnwbfi");
+    // if(!network.isConnected)return
+    // return
+    setRefreshing(true)
+    try {
+      const response = await api.get(`/expense/get-expense/`);
+      const newExpenses = [...response.data.expenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      setExpenses(newExpenses);
+      setHasMore(response.data.hasMore);
+      setCachedExpenses(newExpenses, response.data.totalBalance);
+    } catch (err) {
+      console.error('Failed to fetch expenses', err);
+    }
+    setRefreshing(false)
+  };
+
+
+  useEffect(() => {
+    if (expenses.length < 10) {
+      fetchExpenses()
+    }
+  }, [])
+
 
   return (
     <SafeAreaView className="flex-1 p-4 dark:bg-gray-900">
       <View className="px-2 py-2">
-        <Text className="text-2xl font-bold text-gray-800 dark:text-white mb-4">Hello Mahendra 👋</Text>
+        <Text className="text-2xl font-bold text-gray-800 dark:text-white mb-4">Hello {user} 👋</Text>
       </View>
       <View className="dark:bg-indigo-600 bg-white rounded-xl p-6 mb-6 dark:border-0 border border-gray-300">
         <Text className="dark:text-white text-slate-800 text-lg">Total Balance</Text>
-        <Text className="dark:text-white text-slate-800 text-4xl font-bold mt-2">{balance.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</Text>
+        <Text className="dark:text-white text-slate-800 text-4xl font-bold mt-2">{totalBalance?.toLocaleString('en-IN', { style: 'currency', currency: 'INR' }) ?? "0.00"}</Text>
+        {LastSyncedAt && <Text className="dark:text-gray-300 text-slate-800 text-sm italic mt-1">Last Synced At {LastSyncedAt}</Text>}
       </View>
 
       {/* Transaction Buttons */}
       <View className="flex-row justify-between mb-6">
-        <Link href={'/modal/credit'} asChild>
+        <Link href={'/expenseModal/credit'} asChild>
           <TouchableOpacity className="bg-green-600 py-3 px-6 rounded-lg flex-1 mr-2">
             <Text className="text-white text-center">Add Credit</Text>
           </TouchableOpacity>
         </Link>
-        <Link href={'/modal/debit'} asChild>
+        <Link href={'/expenseModal/debit'} asChild>
           <TouchableOpacity className="bg-red-600 py-3 px-6 rounded-lg flex-1 ml-2">
             <Text className="text-white text-center">Add Debit</Text>
           </TouchableOpacity>
         </Link>
       </View>
       {/* Recent Transactions */}
-      <View className="flex-row justify-between items-center my-4">
+      <View className="flex-row justify-between items-center my-4 mb-2">
         <Text className="dark:text-white text-gray-800 text-lg font-semibold">Recent Transactions</Text>
-        <TouchableOpacity onPress={() => router.navigate('/(tabs)/history')}>
+        {(hasMore) && <TouchableOpacity onPress={() => router.navigate('/(tabs)/history')}>
           <Text className="dark:text-indigo-400 text-indigo-800 dark:font-normal font-semibold text-lg">View All</Text>
-        </TouchableOpacity>
+        </TouchableOpacity>}
       </View>
 
       {expenses[0] &&
         <FlatList
+          className="mb-16"
           data={expenses.slice(0, 10)}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={fetchExpenses} />
+          }
           renderItem={({ item }) => (
-            <View className="mb-2">
-              <TouchableOpacity
-                className="dark:bg-gray-800 bg-white dark:border-0 border border-gray-200 p-4 rounded-lg dark:shadow-none shadow-lg"
-                onPress={() => handleTransactionPress(item.id)}
-              >
-                <View className="flex-row justify-between">
-                  <Text className="dark:text-gray-100">{item.details} {item.type === 'debit' && item.unit? `- ${item.quantity} ${item.unit}` : ""}</Text>
-                  <Text className={item.type === 'debit' ? 'dark:text-red-400 text-red-500' : 'dark:text-green-400 text-green-500'}>
-                    {item.type === 'debit' ? '-' : '+'} ₹{item.amount}
-                  </Text>
-                </View>
-                <View className="flex flex-row justify-between items-center mt-1">
-                  <Text className="dark:text-gray-400 text-gray-700 text-sm">{item.day}</Text>
-                </View>
-              </TouchableOpacity>
-              {/* Edit Button (appears when selected) */}
-              {selectedTransaction === item.id && (
-                <Link href={{
-                  pathname:`/modal/[type]`,
-                  params:{...item}
-                }} asChild>
-                  <TouchableOpacity className="bg-indigo-900 flex-row gap-2 py-2 px-4 rounded-lg items-center justify-end w-full" style={{ borderTopRightRadius: 0, borderTopLeftRadius: 0 }}>
-                    <FontAwesome name="pencil" size={15} color="white" />
-                    <Text className="text-white text-sm font-semibold">Edit Transaction</Text>
-                  </TouchableOpacity>
-                </Link>
-              )}
-            </View>
+            <ExpenseItem
+              item={item}
+              selectedId={selectedTransaction?._id || null}
+              type="user"
+              onSelect={handleTransactionPress}
+              onDeletePress={() => setShowDeleteModal(true)}
+            />
           )}
-          keyExtractor={item => item.id}
+          keyExtractor={item => item._id}
         />}
       {!expenses[0] &&
         <View className="flex flex-row justify-center items-center p-3">
-          <Text className="text-xl text-white ">No transactions to show</Text>
+          <Text className="text-xl dark:text-white ">No transactions to show</Text>
         </View>
       }
+
+      {showDeleteModal && <DeleteModal setShow={setShowDeleteModal} handleDelete={handleDelete} />}
+
     </SafeAreaView>
   );
 }

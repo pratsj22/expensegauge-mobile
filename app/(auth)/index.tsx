@@ -1,10 +1,11 @@
 import { useRouter } from "expo-router";
-import { TouchableOpacity, Text, TextInput, View, Image, useColorScheme } from "react-native";
+import { TouchableOpacity, Text, View, Image, useColorScheme } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function Index() {
   const router = useRouter()
   const colorScheme= useColorScheme();
+  
   return (
     <SafeAreaView className="flex-1 dark:bg-gray-900 p-6">
       <View className="flex-1 justify-center items-center mb-12">
@@ -22,7 +23,7 @@ export default function Index() {
       <View className="mb-10">
         <TouchableOpacity
           className="bg-indigo-600 py-4 rounded-lg mb-4"
-          onPress={() => router.navigate('/login?type=login')}
+          onPress={() => router.navigate('/login?type=login&role=user')}
         >
           <Text className="text-white text-center text-lg font-semibold">
             Login
@@ -31,7 +32,7 @@ export default function Index() {
 
         <TouchableOpacity
           className="border border-indigo-600 py-4 rounded-lg"
-          onPress={() => router.navigate('/login?type=signup')}
+          onPress={() => router.navigate('/login?type=signup&role=user')}
         >
           <Text className="text-indigo-600 text-center text-lg font-semibold">
             Sign Up
