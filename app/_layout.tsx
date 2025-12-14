@@ -1,29 +1,29 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { Stack } from "expo-router";
+import "../global.css";
+import { useColorScheme, View } from "react-native";
 import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
+import ToastManager from 'toastify-react-native'
 
-import { useColorScheme } from '@/hooks/useColorScheme';
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  const [loaded] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-  });
-
-  if (!loaded) {
-    // Async font loading only occurs in development.
-    return null;
-  }
-
+  const colorScheme = useColorScheme()
+  const backcolor = colorScheme == 'light' ? 'white' : '#111827'
+  
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
-      </Stack>
+    <View style={{ flex: 1, backgroundColor: backcolor }}>
       <StatusBar style="auto" />
-    </ThemeProvider>
+      <Stack>
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="modal/[type]" options={{
+          headerShown: false,
+          presentation: 'transparentModal',
+          animation: "fade_from_bottom",
+          statusBarBackgroundColor: backcolor,
+        }} />
+      </Stack>
+      <ToastManager useModal={false} theme={colorScheme} />
+    </View>
+
   );
 }

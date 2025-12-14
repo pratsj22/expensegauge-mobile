@@ -1,45 +1,46 @@
-import { Tabs } from 'expo-router';
-import React from 'react';
-import { Platform } from 'react-native';
+import { Feather } from "@expo/vector-icons";
+import { Tabs } from "expo-router";
+import { Text, useColorScheme, View } from "react-native";
 
-import { HapticTab } from '@/components/HapticTab';
-import { IconSymbol } from '@/components/ui/IconSymbol';
-import TabBarBackground from '@/components/ui/TabBarBackground';
-import { Colors } from '@/constants/Colors';
-import { useColorScheme } from '@/hooks/useColorScheme';
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+export default function RootLayout() {
+  const colorScheme = useColorScheme()
+  const backcolor = colorScheme == 'light' ? 'white' : '#111827'
 
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: false,
-        tabBarButton: HapticTab,
-        tabBarBackground: TabBarBackground,
-        tabBarStyle: Platform.select({
-          ios: {
-            // Use a transparent background on iOS to show the blur effect
-            position: 'absolute',
-          },
-          default: {},
-        }),
+    <View style={{ flex: 1, backgroundColor: '#111827' }}>
+      <Tabs screenOptions={{
+        tabBarShowLabel: false,
+        tabBarStyle: { backgroundColor: backcolor, minHeight: 70, position: "absolute", borderTopWidth: 0.3, borderColor: colorScheme == 'dark' ? '#6366f1' : '#3b82f6' },
+        tabBarActiveTintColor: 'white'
       }}>
-      <Tabs.Screen
-        name="index"
-        options={{
+        <Tabs.Screen name="home/index" options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
-        }}
-      />
-    </Tabs>
+          headerShown: false,
+          tabBarShowLabel: true,
+          tabBarLabel: ({ focused, color }) => (
+            <Text className="text-xs mt-1" style={{ color: focused ? colorScheme == 'dark'? '#6366f1':'#3b82f6' : color }}>Home</Text>
+          ),
+          tabBarIcon: ({ focused, color }) => <Feather size={23} name="home" color={focused ? colorScheme == 'dark'? '#6366f1':'#3b82f6' : color} />,
+        }} />
+        <Tabs.Screen name="history/index" options={{
+          title: "History", headerShown: false,
+          tabBarShowLabel: true,
+          tabBarLabel: ({ focused, color }) => (
+            <Text className="text-xs mt-1" style={{ color: focused ? colorScheme == 'dark'? '#6366f1':'#3b82f6' : color }}>Insights</Text>
+          ),
+          tabBarIcon: ({ focused, color }) => <Feather size={23} name="bar-chart-2" color={focused ? colorScheme == 'dark'? '#6366f1':'#3b82f6' : color} />,
+        }} />
+        <Tabs.Screen name="profile" options={{
+          title: "Profile", headerShown: false,
+          tabBarShowLabel: true,
+          tabBarLabel: ({ focused, color }) => (
+            <Text className="text-xs mt-1" style={{ color: focused ? colorScheme == 'dark'? '#6366f1':'#3b82f6' : color }}>Profile</Text>
+          ),
+          tabBarIcon: ({ focused, color }) => <Feather size={23} name="user" color={focused ? colorScheme == 'dark'? '#6366f1':'#3b82f6' : color} />,
+        }} />
+      </Tabs>
+    </View>
+
   );
 }
