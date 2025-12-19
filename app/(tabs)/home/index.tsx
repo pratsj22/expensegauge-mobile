@@ -70,6 +70,8 @@ export default function Index() {
       const newExpenses = [...response.data.expenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       setExpenses(newExpenses);
       setHasMore(response.data.hasMore);
+      console.log(response.data.totalBalance);
+      
       setCachedExpenses(newExpenses, response.data.totalBalance);
     } catch (err) {
       console.error('Failed to fetch expenses', err);

@@ -47,7 +47,12 @@ export const useExpenseStore = create<ExpenseStore>()(
             ...state,
             cachedExpenses: state.cachedExpenses.map((item) => {
               if (item._id === data._id) {
-                diffAmount = data.amount - item.amount
+                // Correctly calculate total balance based on type
+                if (item.type === 'debit') {
+                  diffAmount = item.amount - data.amount
+                } else {
+                  diffAmount = data.amount - item.amount
+                }
                 return { ...data }
               }
               return item
