@@ -40,11 +40,9 @@ const UserProfileScreen: React.FC = () => {
 
   // Logging for debugging
   useEffect(() => {
-    console.log('[DEBUG] Report Modal State:', { showReportModal, reportType, referenceDate: referenceDate.toISOString(), pickerTarget });
   }, [showReportModal, reportType, referenceDate, pickerTarget]);
 
   const { calculatedStart, calculatedEnd, formattedRange } = useMemo(() => {
-    console.log('[DEBUG] Calculating ranges for:', reportType, referenceDate.toISOString());
     let start = new Date();
     let end = new Date();
     let rangeStr = '';
@@ -79,7 +77,7 @@ const UserProfileScreen: React.FC = () => {
         rangeStr = `${start.toLocaleDateString()} - ${end.toLocaleDateString()} `;
       }
     } catch (err) {
-      console.error('[DEBUG] Calculation Error:', err);
+      console.log('[DEBUG] Calculation Error:', err);
     }
 
     return { calculatedStart: start, calculatedEnd: end, formattedRange: rangeStr };
@@ -93,7 +91,6 @@ const UserProfileScreen: React.FC = () => {
 
     setShowReportModal(false);
     try {
-      console.log('[DEBUG] Sending report request:', { type: 'custom', start: calculatedStart.toISOString(), end: calculatedEnd.toISOString() });
       Toast.info(`Generating ${reportType} Report...`)
       // Always sending as 'custom' with explicit dates to backend for precision
       await api.post('/expense/report/generate', {
@@ -103,7 +100,6 @@ const UserProfileScreen: React.FC = () => {
       })
       Toast.success(`Report sent to ${email} `)
     } catch (e) {
-      console.error('[DEBUG] Generation API Error:', e);
       Toast.error("Failed to generate report")
     }
   };

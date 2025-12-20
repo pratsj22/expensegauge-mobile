@@ -25,14 +25,14 @@ export const addExpenseApi = async (data: Transaction) => {
                 }),
             },
         });
-        
+
         if (response.data.offline) {
             Toast.info("Offline — expense will sync later.");
             return null;
         }
 
         return response.data.id; // backend-assigned ID
-    } catch (error:any) {
+    } catch (error: any) {
         console.error("Error adding expense:", error.message);
         return null;
     }
@@ -60,7 +60,16 @@ export const editExpenseApi = async (data: Transaction) => {
 // Edit user expense as admin
 export const editUserExpenseAdminApi = async (userId: string, data: Transaction) => {
     try {
-        await api.patch(`/admin/expense/${userId}/${data._id}`, data);
+        await api.patch(`/admin/expense/${userId}/${data._id}`, data, {
+            headers: {
+                "x-meta": JSON.stringify({
+                    localId: data._id,
+                    userId,
+                    type: "admin_expense",
+                    action: "edit",
+                }),
+            },
+        });
     } catch (error) {
         console.error("Error editing user expense (admin):", error);
     }
@@ -69,11 +78,23 @@ export const editUserExpenseAdminApi = async (userId: string, data: Transaction)
 // Assign balance to user
 export const assignBalanceApi = async (userId: string, details: string, date: string, amount: number) => {
     try {
+        const tempId = Date.now().toString();
         const response = await api.post(`/admin/assignBalance/${userId}`, {
             details,
             date,
             amount,
+        }, {
+            headers: {
+                "x-meta": JSON.stringify({
+                    localId: tempId,
+                    userId,
+                    type: "admin_balance",
+                    action: "add",
+                }),
+            },
         });
+
+        if (response.data.offline) return tempId;
         return response.data.id;
     } catch (error) {
         console.error(error);

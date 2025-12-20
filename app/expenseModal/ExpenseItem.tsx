@@ -23,7 +23,6 @@ type Props = {
 export default function ExpenseItem({ item, selectedId, type = "user", onSelect, onDeletePress }: Props) {
   const colorScheme = useColorScheme();
   const isSelected = selectedId === item._id;
-  console.log(item.isSynced);
   
   return (
     <View className="mb-2">

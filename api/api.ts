@@ -5,9 +5,8 @@ import axios from 'axios';
 import { router } from 'expo-router';
 import { checkConnection } from './network';
 import { addToQueue } from '@/store/offlineQueue';
-// import { API_URL } from '@env'; // loaded from .env file
-const API_URL = "https://comfy-chia-overvaliant.ngrok-free.dev/api/v1"
-// const API_URL = "https://expensegauge-backend.onrender.com/api/v1"
+
+const API_URL = "https://expensegauge-backend.onrender.com/api/v1"
 
 
 const api = axios.create({
@@ -27,23 +26,33 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+let onQueueAdded: (() => void) | null = null;
+export const setOnQueueAdded = (cb: () => void) => {
+  onQueueAdded = cb;
+};
+
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const { refreshToken, setTokens, reset } = useAuthStore.getState()
-    console.log(error);
-
     const originalRequest = error.config;
-    const errorCode = error.response?.data?.code;
-    if (errorCode) {
+
+    // 1. Skip if specifically told to, or if it's already a retry (to avoid loops)
+    if (originalRequest.headers?.['x-skip-queue']) {
       return Promise.reject(error);
     }
-    const isConnected = await checkConnection();
 
-    // If offline, queue the request
-    if (!isConnected) {
-      console.log('Offline detected, queueing request...');
-      const metadata = originalRequest.headers['x-meta']
+    const isConnected = await checkConnection();
+    const isMutation = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(originalRequest.method?.toUpperCase() || '');
+
+    // 2. Queue mutations on ANY retryable error (offline, 5xx, timeout)
+    const status = error.response?.status;
+    const isRetryableError = !status || (status >= 500 && status <= 599) || status === 408 || status === 404;
+
+    if (isMutation && (!isConnected || isRetryableError)) {
+      console.log(`Queueing ${originalRequest.method} request due to ${isConnected ? 'retryable error' : 'offline status'}`);
+
+      const metadata = originalRequest.headers?.['x-meta']
         ? JSON.parse(originalRequest.headers['x-meta'])
         : {};
 
@@ -53,7 +62,11 @@ api.interceptors.response.use(
         data: originalRequest.data ? JSON.parse(originalRequest.data) : undefined,
         ...metadata,
       });
-      return Promise.resolve({ data: { offline: true } }); // Fake response
+
+      // Trigger the sync processor immediately if something was added
+      onQueueAdded?.();
+
+      return Promise.resolve({ data: { offline: true } });
     }
 
     if (error.response?.status === 401 && !originalRequest._retry) {
@@ -73,7 +86,6 @@ api.interceptors.response.use(
         const { setCachedExpenses } = useExpenseStore.getState()
         reset()
         setCachedExpenses([], 0)
-        // redirect to login screen here
         router.replace('/')
         return Promise.reject(err);
       }

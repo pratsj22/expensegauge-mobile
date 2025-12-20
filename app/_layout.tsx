@@ -32,6 +32,14 @@ export default function RootLayout() {
         await processQueue();
       }
     });
+
+    // 3️⃣ Subscribe to new queue items
+    const { setOnQueueAdded } = require("@/api/api");
+    setOnQueueAdded(() => {
+      console.log("📥 New item queued! Syncing...");
+      processQueue();
+    });
+
     api.get("/health").catch((err) => {
       console.log("Error fetching profile on app start:", err.message);
     });

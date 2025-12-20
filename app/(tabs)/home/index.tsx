@@ -58,20 +58,14 @@ export default function Index() {
   }
   const colorScheme = useColorScheme();
 
-  // const network = useNetworkState()
 
   const fetchExpenses = async () => {
-    // console.log("hellodnwbfi");
-    // if(!network.isConnected)return
-    // return
     setRefreshing(true)
     try {
       const response = await api.get(`/expense/get-expense/`);
       const newExpenses = [...response.data.expenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       setExpenses(newExpenses);
       setHasMore(response.data.hasMore);
-      console.log(response.data.totalBalance);
-      
       setCachedExpenses(newExpenses, response.data.totalBalance);
     } catch (err) {
       console.error('Failed to fetch expenses', err);
