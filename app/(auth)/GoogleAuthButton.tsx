@@ -22,7 +22,7 @@ export default function GoogleAuthButton() {
       const { idToken } = await GoogleSignin.getTokens();
 
       if (!idToken) {
-        console.log("No idToken received from Google");
+        console.error("No idToken received from Google");
         return;
       }
 
@@ -34,7 +34,7 @@ export default function GoogleAuthButton() {
 
       router.replace("/(tabs)/home");
     } catch (error: any) {
-      console.log("Google Sign-In Error:", error);
+      console.error("Google Sign-In Error:", error);
     }
   };
 

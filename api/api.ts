@@ -50,7 +50,7 @@ api.interceptors.response.use(
     const isRetryableError = !status || (status >= 500 && status <= 599) || status === 408 || status === 404;
 
     if (isMutation && (!isConnected || isRetryableError)) {
-      console.log(`Queueing ${originalRequest.method} request due to ${isConnected ? 'retryable error' : 'offline status'}`);
+      console.error(`Queueing ${originalRequest.method} request due to ${isConnected ? 'retryable error' : 'offline status'}`);
 
       const metadata = originalRequest.headers?.['x-meta']
         ? JSON.parse(originalRequest.headers['x-meta'])

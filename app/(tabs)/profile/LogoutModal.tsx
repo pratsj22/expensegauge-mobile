@@ -17,7 +17,7 @@ const LogoutModal = ({ setShow }: any) => {
             setShow(false)
             router.replace('/')
         } catch (error) {
-            console.log(error);
+            console.error(error);
         }
     }
     return (

@@ -23,7 +23,6 @@ export const processQueue = async () => {
     if (request.nextRetryTime && request.nextRetryTime > now) continue;
 
     try {
-      console.log(`Syncing ${request.method} ${request.url} (Try ${request.retryCount + 1})`);
       const res = await api.request({
         method: request.method,
         url: request.url,
@@ -49,7 +48,6 @@ export const processQueue = async () => {
       }
 
       await removeFromQueue(request.id);
-      console.log(`✅ Synced: ${request.url}`);
     } catch (err: any) {
       const retryCount = request.retryCount + 1;
       if (retryCount >= MAX_RETRIES) {

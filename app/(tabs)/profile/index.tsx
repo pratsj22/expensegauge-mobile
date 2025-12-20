@@ -77,7 +77,7 @@ const UserProfileScreen: React.FC = () => {
         rangeStr = `${start.toLocaleDateString()} - ${end.toLocaleDateString()} `;
       }
     } catch (err) {
-      console.log('[DEBUG] Calculation Error:', err);
+      console.error('[DEBUG] Calculation Error:', err);
     }
 
     return { calculatedStart: start, calculatedEnd: end, formattedRange: rangeStr };

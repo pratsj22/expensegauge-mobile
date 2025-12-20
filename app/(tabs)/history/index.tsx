@@ -195,7 +195,6 @@ export default function TransactionHistory() {
       fetchExpenses()
     }
   }, []);
-console.log(tooltip?.y);
 
   return (
     <SafeAreaView className="flex-1 dark:bg-gray-900 p-5 pb-20">

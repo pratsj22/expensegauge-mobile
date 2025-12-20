@@ -58,14 +58,12 @@ export default function Index() {
     const handleVerify = async () => {
         if (!validateFields()) return;
         try {
-            console.log("enterred try");
             
             setButtonDisabled(true)
             const response = await api.post(`/user/changePassword`, { oldPassword, newPassword })
             router.navigate('/(tabs)/profile');
-            console.log(response);
+            
         } catch (error: any) {
-            console.log("error aaya",error);
             
             setButtonDisabled(false)
             setError((prev) => ({ ...prev, serverError: error.response.data.message }));

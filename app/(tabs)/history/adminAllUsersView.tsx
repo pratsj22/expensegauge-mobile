@@ -68,11 +68,6 @@ export default function TransactionHistory() {
     }
   };
   useEffect(() => {
-    console.log("run");
-    // const newElements = expense.filter(item => !users.includes(item));
-    // const newExpense=[...users,...newElements].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-
-    // setUsers(newExpense)
     if (users.length < 10) {
       fetchUsers()
     }

@@ -71,12 +71,10 @@ export default function Index() {
     const handleVerify = async () => {
         if (!validateFields()) return;
         try {
-            console.log("enterred try");
             const parsedAmount= parseFloat(assignBalance) || 0;
             setButtonDisabled(true)
             const response = await api.post(`/admin/registeruser`, { name, email, password,balance:parsedAmount })
             router.navigate('/(tabs)/home');
-            console.log(response);
             addUser({
                 _id: response.data.id,
                 name,
@@ -87,10 +85,7 @@ export default function Index() {
 
             // router.navigate('/(tabs)/home');
         } catch (error: any) {
-            console.log("error aaya", error);
-
             setButtonDisabled(false)
-            // console.log(error.response.data.message);
             setError((prev) => ({ ...prev, serverError: error.response.data.message }));
         }
     }

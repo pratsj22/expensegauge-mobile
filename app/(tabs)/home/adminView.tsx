@@ -78,7 +78,7 @@ export default function Index() {
             setHasMore(response.data.hasMore)
             setCachedUsers(response.data.users, response.data.totalUserBalance)
         } catch (error) {
-            console.log(error);
+            console.error(error);
 
         }
         setRefreshing(false)

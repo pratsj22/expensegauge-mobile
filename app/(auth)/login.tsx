@@ -119,7 +119,7 @@ export default function Login() {
         router.navigate('/(tabs)/home');
       }
     } catch (error: any) {
-      console.log("error : ",error);
+      console.error("error : ",error);
       
       setError((prev) => ({ ...prev, serverError: error.response.data.message }));
     }

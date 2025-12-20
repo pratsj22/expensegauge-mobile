@@ -28,7 +28,6 @@ export default function RootLayout() {
     // 2️⃣ Subscribe to network changes
     const unsubscribe = NetInfo.addEventListener(async (state) => {
       if (state.isConnected) {
-        console.log("🔌 Back online! Syncing offline queue...");
         await processQueue();
       }
     });
@@ -36,12 +35,11 @@ export default function RootLayout() {
     // 3️⃣ Subscribe to new queue items
     const { setOnQueueAdded } = require("@/api/api");
     setOnQueueAdded(() => {
-      console.log("📥 New item queued! Syncing...");
       processQueue();
     });
 
     api.get("/health").catch((err) => {
-      console.log("Error fetching profile on app start:", err.message);
+      console.error("Error fetching profile on app start:", err.message);
     });
 
     return () => unsubscribe();
