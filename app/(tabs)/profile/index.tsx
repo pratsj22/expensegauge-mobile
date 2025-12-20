@@ -1,7 +1,7 @@
 import { useAuthStore } from '@/store/authStore';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { View, Text, Image, ScrollView, Pressable, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LogoutModal from './LogoutModal';
@@ -31,73 +31,81 @@ const UserProfileScreen: React.FC = () => {
   const [customStart, setCustomStart] = useState(getLastWeek());
   const [customEnd, setCustomEnd] = useState(new Date());
 
-  // Date Picker visibility
-  const [showRefPicker, setShowRefPicker] = useState(false);
-  const [showStartPicker, setShowStartPicker] = useState(false);
-  const [showEndPicker, setShowEndPicker] = useState(false);
+  // Picker Target State
+  const [showPicker, setShowPicker] = useState(false);
+  const [pickerTarget, setPickerTarget] = useState<'reference' | 'start' | 'end'>('reference');
 
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
-  const handleGenerate = async () => {
+  // Logging for debugging
+  useEffect(() => {
+    console.log('[DEBUG] Report Modal State:', { showReportModal, reportType, referenceDate: referenceDate.toISOString(), pickerTarget });
+  }, [showReportModal, reportType, referenceDate, pickerTarget]);
+
+  const { calculatedStart, calculatedEnd, formattedRange } = useMemo(() => {
+    console.log('[DEBUG] Calculating ranges for:', reportType, referenceDate.toISOString());
     let start = new Date();
     let end = new Date();
-    let d = new Date(referenceDate);
+    let rangeStr = '';
 
-    if (reportType === 'weekly') {
-      // Logic to get start of week (Sunday or Monday)
-      const day = d.getDay();
-      const diff = d.getDate() - day;
-      start = new Date(d);
-      start.setDate(diff);
-      start.setHours(0, 0, 0, 0);
+    try {
+      const d = new Date(referenceDate);
 
-      end = new Date(start);
-      end.setDate(start.getDate() + 6);
-      end.setHours(23, 59, 59, 999);
-    } else if (reportType === 'monthly') {
-      start = new Date(d.getFullYear(), d.getMonth(), 1);
-      end = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-      end.setHours(23, 59, 59, 999);
-    } else if (reportType === 'yearly') {
-      start = new Date(d.getFullYear(), 0, 1);
-      end = new Date(d.getFullYear(), 11, 31);
-      end.setHours(23, 59, 59, 999);
-    } else if (reportType === 'custom') {
-      start = new Date(customStart);
-      end = new Date(customEnd);
-      if (start > end) {
-        Toast.error("Start date must be before end date");
-        return;
+      if (reportType === 'weekly') {
+        const day = d.getDay();
+        const diff = d.getDate() - day;
+        start = new Date(d);
+        start.setDate(diff);
+        start.setHours(0, 0, 0, 0);
+
+        end = new Date(start);
+        end.setDate(start.getDate() + 6);
+        end.setHours(23, 59, 59, 999);
+        rangeStr = `${start.toLocaleDateString()} - ${end.toLocaleDateString()} `;
+      } else if (reportType === 'monthly') {
+        start = new Date(d.getFullYear(), d.getMonth(), 1);
+        end = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+        end.setHours(23, 59, 59, 999);
+        rangeStr = d.toLocaleDateString('default', { month: 'long', year: 'numeric' });
+      } else if (reportType === 'yearly') {
+        start = new Date(d.getFullYear(), 0, 1);
+        end = new Date(d.getFullYear(), 11, 31);
+        end.setHours(23, 59, 59, 999);
+        rangeStr = d.getFullYear().toString();
+      } else if (reportType === 'custom') {
+        start = new Date(customStart);
+        end = new Date(customEnd);
+        rangeStr = `${start.toLocaleDateString()} - ${end.toLocaleDateString()} `;
       }
+    } catch (err) {
+      console.error('[DEBUG] Calculation Error:', err);
+    }
+
+    return { calculatedStart: start, calculatedEnd: end, formattedRange: rangeStr };
+  }, [reportType, referenceDate, customStart, customEnd]);
+
+  const handleGenerate = async () => {
+    if (reportType === 'custom' && calculatedStart > calculatedEnd) {
+      Toast.error("Start date must be before end date");
+      return;
     }
 
     setShowReportModal(false);
     try {
+      console.log('[DEBUG] Sending report request:', { type: 'custom', start: calculatedStart.toISOString(), end: calculatedEnd.toISOString() });
       Toast.info(`Generating ${reportType} Report...`)
       // Always sending as 'custom' with explicit dates to backend for precision
       await api.post('/expense/report/generate', {
         type: 'custom',
-        startDate: start.toISOString(),
-        endDate: end.toISOString()
+        startDate: calculatedStart.toISOString(),
+        endDate: calculatedEnd.toISOString()
       })
-      Toast.success(`Report sent to ${email}`)
+      Toast.success(`Report sent to ${email} `)
     } catch (e) {
+      console.error('[DEBUG] Generation API Error:', e);
       Toast.error("Failed to generate report")
     }
-  };
-
-  const formatDateRange = () => {
-    const d = new Date(referenceDate);
-    if (reportType === 'weekly') {
-      const day = d.getDay();
-      const start = new Date(d.setDate(d.getDate() - day));
-      const end = new Date(new Date(start).setDate(start.getDate() + 6));
-      return `${start.toLocaleDateString()} - ${end.toLocaleDateString()}`;
-    }
-    if (reportType === 'monthly') return d.toLocaleDateString('default', { month: 'long', year: 'numeric' });
-    if (reportType === 'yearly') return d.getFullYear().toString();
-    return '';
   };
 
   return (
@@ -119,7 +127,10 @@ const UserProfileScreen: React.FC = () => {
 
           <View className=" p-2 mb-6">
 
-            <Pressable className="flex-row justify-between items-center border-b dark:border-gray-600 border-gray-300 dark:active:bg-gray-800 active:bg-gray-100" onPress={() => setShowReportModal(true)}>
+            <Pressable
+              className="flex-row justify-between items-center border-b dark:border-gray-600 border-gray-300 dark:active:bg-gray-800 active:bg-gray-100"
+              onPress={() => setShowReportModal(true)}
+            >
               <Text className="text-base text-gray-700 dark:text-gray-200 py-6">Download Expense Report</Text>
               <Text className="text-base text-gray-500 dark:text-gray-300 py-6 px-1"><Feather name='download' size={15} /></Text>
             </Pressable>
@@ -161,15 +172,27 @@ const UserProfileScreen: React.FC = () => {
                     <TouchableOpacity
                       key={t}
                       onPress={() => setReportType(t)}
-                      className={isActive
-                        ? "flex-1 py-2 rounded-md bg-white dark:bg-gray-600 shadow-sm"
-                        : "flex-1 py-2 rounded-md"
-                      }
+                      style={{
+                        flex: 1,
+                        paddingVertical: 8,
+                        borderRadius: 8,
+                        backgroundColor: isActive ? (isDark ? '#4B5563' : '#FFFFFF') : 'transparent',
+                        shadowColor: isActive ? '#000' : 'transparent',
+                        shadowOffset: { width: 0, height: 1 },
+                        shadowOpacity: isActive ? 0.2 : 0,
+                        shadowRadius: 1,
+                        elevation: isActive ? 2 : 0,
+                      }}
                     >
-                      <Text className={isActive
-                        ? "text-center text-xs font-medium capitalize text-indigo-600 dark:text-white"
-                        : "text-center text-xs font-medium capitalize text-gray-500 dark:text-gray-400"
-                      }>
+                      <Text
+                        style={{
+                          textAlign: 'center',
+                          fontSize: 12,
+                          fontWeight: '500',
+                          textTransform: 'capitalize',
+                          color: isActive ? (isDark ? '#FFFFFF' : '#4F46E5') : (isDark ? '#9CA3AF' : '#6B7280')
+                        }}
+                      >
                         {t}
                       </Text>
                     </TouchableOpacity>
@@ -178,55 +201,134 @@ const UserProfileScreen: React.FC = () => {
               </View>
 
               {/* Dynamic Inputs */}
-              {reportType !== 'custom' ? (
+              {reportType === 'yearly' && (
                 <View className="mb-6">
-                  <Text className="text-gray-600 dark:text-gray-300 mb-2 font-medium">
-                    Select {reportType === 'weekly' ? 'Week' : reportType === 'monthly' ? 'Month' : 'Year'}
-                  </Text>
+                  <Text className="text-gray-600 dark:text-gray-300 mb-3 font-medium text-center">Select Year</Text>
+                  <View className="flex-row flex-wrap justify-center gap-2">
+                    {[0, 1, 2, 3, 4, 5].map((i) => {
+                      const yr = new Date().getFullYear() - i;
+                      const isSel = referenceDate.getFullYear() === yr;
+                      return (
+                        <TouchableOpacity
+                          key={yr}
+                          onPress={() => {
+                            const d = new Date(referenceDate);
+                            d.setFullYear(yr);
+                            setReferenceDate(d);
+                          }}
+                          className={`px-4 py-2 rounded-xl border ${isSel ? 'bg-indigo-600 border-indigo-600' : 'bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700'}`}
+                        >
+                          <Text className={isSel ? 'text-white font-bold' : 'text-gray-700 dark:text-gray-300'}>{yr}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              )}
+
+              {reportType === 'monthly' && (
+                <View className="mb-6">
+                  <View className="flex-row justify-between items-center mb-4 px-2">
+                    <TouchableOpacity onPress={() => {
+                      const d = new Date(referenceDate);
+                      d.setFullYear(d.getFullYear() - 1);
+                      setReferenceDate(d);
+                    }}>
+                      <Feather name="chevron-left" size={20} color={isDark ? 'white' : 'gray'} />
+                    </TouchableOpacity>
+                    <Text className="text-lg font-bold dark:text-white">{referenceDate.getFullYear()}</Text>
+                    <TouchableOpacity onPress={() => {
+                      const d = new Date(referenceDate);
+                      d.setFullYear(d.getFullYear() + 1);
+                      setReferenceDate(d);
+                    }}>
+                      <Feather name="chevron-right" size={20} color={isDark ? 'white' : 'gray'} />
+                    </TouchableOpacity>
+                  </View>
+                  <View className="flex-row flex-wrap justify-between gap-y-2">
+                    {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m, idx) => {
+                      const isSel = referenceDate.getMonth() === idx;
+                      return (
+                        <TouchableOpacity
+                          key={m}
+                          onPress={() => {
+                            const d = new Date(referenceDate);
+                            d.setMonth(idx);
+                            setReferenceDate(d);
+                          }}
+                          style={{ width: '31%' }}
+                          className={`py-2 rounded-lg border ${isSel ? 'bg-indigo-600 border-indigo-600' : 'bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700'}`}
+                        >
+                          <Text className={`text-center text-xs ${isSel ? 'text-white font-bold' : 'text-gray-600 dark:text-gray-400'}`}>{m}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              )}
+
+              {reportType === 'weekly' && (
+                <View className="mb-6">
+                  <Text className="text-gray-600 dark:text-gray-300 mb-2 font-medium">Select Week (pick any day)</Text>
                   <TouchableOpacity
-                    onPress={() => setShowRefPicker(true)}
+                    onPress={() => { setShowPicker(true); setPickerTarget('reference'); }}
                     className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-4 rounded-xl flex-row justify-between items-center"
                   >
                     <Text className="dark:text-white text-base">
-                      {formatDateRange()}
+                      {formattedRange}
                     </Text>
                     <Feather name="calendar" size={18} color={isDark ? "white" : "gray"} />
                   </TouchableOpacity>
-                  {showRefPicker && (
-                    <DateTimePicker
-                      value={referenceDate}
-                      mode="date"
-                      display="default"
-                      onChange={(event, date) => {
-                        setShowRefPicker(Platform.OS === 'ios');
-                        if (date) setReferenceDate(date);
-                      }}
-                    />
-                  )}
                 </View>
-              ) : (
+              )}
+
+              {reportType === 'custom' && (
                 <View className="mb-6">
                   <View className="mb-4">
                     <Text className="text-gray-600 dark:text-gray-300 mb-2 font-medium">Start Date</Text>
-                    <TouchableOpacity onPress={() => setShowStartPicker(true)} className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-3 rounded-xl flex-row justify-between items-center">
+                    <TouchableOpacity
+                      onPress={() => { setShowPicker(true); setPickerTarget('start'); }}
+                      className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-3 rounded-xl flex-row justify-between items-center"
+                    >
                       <Text className="dark:text-white">{customStart.toDateString()}</Text>
                       <Feather name="calendar" size={18} color={isDark ? "white" : "gray"} />
                     </TouchableOpacity>
-                    {showStartPicker && (
-                      <DateTimePicker value={customStart} mode="date" display="default" onChange={(e, d) => { setShowStartPicker(Platform.OS === 'ios'); if (d) setCustomStart(d); }} />
-                    )}
                   </View>
                   <View>
                     <Text className="text-gray-600 dark:text-gray-300 mb-2 font-medium">End Date</Text>
-                    <TouchableOpacity onPress={() => setShowEndPicker(true)} className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-3 rounded-xl flex-row justify-between items-center">
+                    <TouchableOpacity
+                      onPress={() => { setShowPicker(true); setPickerTarget('end'); }}
+                      className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-3 rounded-xl flex-row justify-between items-center"
+                    >
                       <Text className="dark:text-white">{customEnd.toDateString()}</Text>
                       <Feather name="calendar" size={18} color={isDark ? "white" : "gray"} />
                     </TouchableOpacity>
-                    {showEndPicker && (
-                      <DateTimePicker value={customEnd} mode="date" display="default" maximumDate={new Date()} onChange={(e, d) => { setShowEndPicker(Platform.OS === 'ios'); if (d) setCustomEnd(d); }} />
-                    )}
                   </View>
                 </View>
+              )}
+
+              {/* Single Picker Instance */}
+              {showPicker && (
+                <DateTimePicker
+                  value={
+                    pickerTarget === 'reference' ? referenceDate :
+                      pickerTarget === 'start' ? customStart :
+                        customEnd
+                  }
+                  mode="date"
+                  display="default"
+                  maximumDate={new Date()}
+                  onChange={(event, date) => {
+                    setShowPicker(Platform.OS === 'ios');
+                    if (event.type === 'set' && date) {
+                      if (pickerTarget === 'reference') setReferenceDate(date);
+                      if (pickerTarget === 'start') setCustomStart(date);
+                      if (pickerTarget === 'end') setCustomEnd(date);
+                    } else if (event.type === 'dismissed') {
+                      setShowPicker(false);
+                    }
+                  }}
+                />
               )}
 
               <View className="flex-row gap-3">

@@ -6,7 +6,8 @@ import { router } from 'expo-router';
 import { checkConnection } from './network';
 import { addToQueue } from '@/store/offlineQueue';
 // import { API_URL } from '@env'; // loaded from .env file
-const API_URL = "https://expensegauge-backend.onrender.com/api/v1"
+const API_URL = "https://comfy-chia-overvaliant.ngrok-free.dev/api/v1"
+// const API_URL = "https://expensegauge-backend.onrender.com/api/v1"
 
 
 const api = axios.create({
