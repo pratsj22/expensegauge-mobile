@@ -17,14 +17,54 @@ type Transaction = {
   category: string;
   isSynced: string | null;
 }
+type User = {
+  _id: string;
+  netBalance: number;
+  name: string;
+  createdAt: string;
+  expenses: Transaction[];
+};
 // Screen width for chart
 const screenWidth = Dimensions.get('window').width;
 
 export default function TransactionHistory() {
-  const { userindex } = useLocalSearchParams<Record<string, string>>()
-  const user = useAdminStore((state) => state.cachedUsers[parseInt(userindex)]);
+  const { userindex, userId } = useLocalSearchParams<Record<string, string>>()
+  const cachedUsers = useAdminStore((state) => state.cachedUsers);
   const { removeUserExpenseByAdmin } = useAdminStore()
-  const [expenses, setExpenses] = useState<Transaction[]>(user.expenses);
+
+  const [user, setUser] = useState<User | null>(() => {
+    if (userId) return cachedUsers.find(u => u._id === userId) || null;
+    if (userindex) return cachedUsers[parseInt(userindex)] || null;
+    return null;
+  });
+
+  const [expenses, setExpenses] = useState<Transaction[]>(user?.expenses || []);
+
+  const fetchUserData = async () => {
+    if (!userId) return;
+    try {
+      const response = await api.get(`/admin/user/${userId}`);
+      setUser(prev => {
+        if (!prev) return { ...response.data, expenses: [] };
+        return { ...response.data, expenses: prev.expenses };
+      });
+    } catch (error) {
+      console.error("Failed to fetch user data", error);
+    }
+  }
+
+  useEffect(() => {
+    if (!user && userId) {
+      fetchUserData();
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    if (user) {
+      setExpenses(user.expenses);
+    }
+  }, [user]);
+
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -36,7 +76,7 @@ export default function TransactionHistory() {
     );
   }
   const handleDelete = async () => {
-    if (selectedTransaction) {
+    if (selectedTransaction && user) {
       try {
         const response = await api.delete(`/admin/expense/${user._id}/${selectedTransaction._id}`)
         setExpenses(prev => prev.filter((item) => item._id !== selectedTransaction._id))
@@ -105,7 +145,7 @@ export default function TransactionHistory() {
   };
 
   const fetchExpenses = async () => {
-
+    if (!user?._id) return;
     if (loading || !hasMore) return;
 
     setLoading(true);
@@ -113,7 +153,7 @@ export default function TransactionHistory() {
       const limit = 10;
       const response = await api.get(`/admin/expenses/${user._id}/?offset=${offset}&limit=${limit}`);
 
-      setExpenses(prev => [...response.data.expenses].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
+      setExpenses(prev => [...response.data.expenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
       setOffset(prev => prev + limit);
       setHasMore(response.data.hasMore);
     } catch (err) {
@@ -123,10 +163,18 @@ export default function TransactionHistory() {
     }
   };
   useEffect(() => {
-    if (expenses.length < 10) {
+    if (user && expenses.length < 10) {
       fetchExpenses()
     }
-  }, []);
+  }, [user]);
+
+  if (!user) {
+    return (
+      <View className="flex-1 justify-center items-center dark:bg-gray-900">
+        <ActivityIndicator size="large" />
+      </View>
+    )
+  }
 
   return (
     <View className="flex-1 dark:bg-gray-900 p-5 pb-20">

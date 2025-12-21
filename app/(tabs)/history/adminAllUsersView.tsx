@@ -6,6 +6,8 @@ import api from '@/api/api';
 import { ActivityIndicator } from 'react-native-paper';
 import { FontAwesome } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import DeleteModal from '../home/DeleteModal';
+import { useAdminStore } from '@/store/adminStore';
 
 type Transaction = {
   _id: string;
@@ -14,7 +16,7 @@ type Transaction = {
   details: string;
   type: string;
   category: string;
-  isSynced:string|null;
+  isSynced: string | null;
 }
 type User = {
   _id: string;
@@ -32,6 +34,7 @@ export default function TransactionHistory() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const router = useRouter()
+  const { deleteUser, setCachedUsers, totalUserBalance, cachedUsers, LastSyncedAt } = useAdminStore();
   // Process transactions for monthly segregation and graph data
   const getMonthlyData = () => {
     const monthlyData: { [key: string]: User[] } = {};
@@ -78,8 +81,18 @@ export default function TransactionHistory() {
       selectedUser?._id === user._id ? null : user
     );
   }
-  const handleDelete = () => {
-    // if (selectedUser) deleteUser(selectedUser)
+  const handleDelete = async () => {
+    if (selectedUser) {
+      try {
+        const response = await api.delete(`/admin/delete/${selectedUser._id}`)
+        setUsers(prev => prev.filter((item) => item._id !== selectedUser._id))
+        deleteUser(selectedUser)
+
+      } catch (error) {
+        console.error(error);
+
+      }
+    }
     setShowDeleteModal(false)
   }
   const colorScheme = useColorScheme()
@@ -142,6 +155,7 @@ export default function TransactionHistory() {
         :
         <Text className="text-gray-600 dark:text-gray-300 font-semibold text-center py-5 text-lg">No data available</Text>
       }
+      {showDeleteModal && <DeleteModal setShow={setShowDeleteModal} handleDelete={handleDelete} />}
     </SafeAreaView>
   );
 }

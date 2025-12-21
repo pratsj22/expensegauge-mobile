@@ -40,23 +40,33 @@ export const useAdminStore = create<AdminStore>()(
             totalUserBalance: 0,
             LastSyncedAt: new Date(Date.now()).toLocaleString(),
             setCachedUsers: (data: User[], balance) => set((state) => ({
-                cachedUsers: data,
+                cachedUsers: data.slice(0, 5).map(user => ({
+                    ...user,
+                    expenses: user.expenses.slice(0, 10)
+                })),
                 totalUserBalance: balance,
                 LastSyncedAt: new Date(Date.now()).toLocaleString()
             })),
             addUser: (data) =>
-                set((state) => ({
-                    ...state,
-                    cachedUsers: [data, ...state.cachedUsers].sort(
+                set((state) => {
+                    const updatedUsers = [data, ...state.cachedUsers].sort(
                         (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-                    ),
-                    totalUserBalance: state.totalUserBalance + data.netBalance
-                })),
+                    ).slice(0, 5);
+                    return {
+                        ...state,
+                        cachedUsers: updatedUsers,
+                        totalUserBalance: state.totalUserBalance + data.netBalance
+                    }
+                }),
             assignBalance: (id, expense) =>
                 set((state) => ({
                     ...state,
                     cachedUsers: state.cachedUsers.map((item) => (
-                        item._id === id ? { ...item, netBalance: (item.netBalance + expense.amount), expenses: [...item.expenses, expense] } : item
+                        item._id === id ? {
+                            ...item,
+                            netBalance: (item.netBalance + expense.amount),
+                            expenses: [expense, ...item.expenses].slice(0, 10)
+                        } : item
                     )),
                     totalUserBalance: state.totalUserBalance + expense.amount
                 })),

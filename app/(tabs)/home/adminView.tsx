@@ -110,7 +110,7 @@ export default function Index() {
             {/* List of users */}
             <View className="flex-row justify-between items-center my-4">
                 <Text className="dark:text-white text-gray-800 text-lg font-semibold">List of Users</Text>
-                {hasMore&&<TouchableOpacity onPress={() => router.navigate('/history/adminAllUsersView')}>
+                {hasMore && <TouchableOpacity onPress={() => router.navigate('/history/adminAllUsersView')}>
                     <Text className="dark:text-indigo-400 text-indigo-800 dark:font-normal font-semibold text-lg">View All</Text>
                 </TouchableOpacity>}
             </View>
@@ -143,7 +143,7 @@ export default function Index() {
                                         <FontAwesome name="trash" size={15} color={`${colorScheme == 'dark' ? 'white' : 'black'}`} />
                                         <Text className="dark:text-white text-sm font-semibold">Delete User</Text>
                                     </TouchableOpacity>
-                                    <TouchableOpacity className="dark:bg-indigo-900 bg-indigo-200 flex-row gap-2 -mt-1 py-2 px-4 items-center justify-start w-1/2" style={{ borderBottomRightRadius: 8, }} onPress={() => router.navigate(`/admin/adminUserView?userindex=${index}&`)}>
+                                    <TouchableOpacity className="dark:bg-indigo-900 bg-indigo-200 flex-row gap-2 -mt-1 py-2 px-4 items-center justify-start w-1/2" style={{ borderBottomRightRadius: 8, }} onPress={() => router.navigate(`/admin/adminUserView?userindex=${index}&userId=${item._id}`)}>
                                         <FontAwesome name="eye" size={15} color={`${colorScheme == 'dark' ? 'white' : 'black'}`} />
                                         <Text className="dark:text-white text-sm font-semibold">View User</Text>
                                     </TouchableOpacity>
