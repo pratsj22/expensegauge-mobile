@@ -203,7 +203,7 @@ const ExpenseForm = () => {
             placeholder="Enter details"
             value={form.details}
             onChangeText={(v) => updateForm("details", v)}
-            onBlur={handleCategoryDetect} // ✅ Restored original behavior
+            onBlur={handleCategoryDetect}
           />
 
           {/* Amount */}
