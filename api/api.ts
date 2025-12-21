@@ -6,12 +6,13 @@ import { router } from 'expo-router';
 import { checkConnection } from './network';
 import { addToQueue } from '@/store/offlineQueue';
 
-const API_URL = "https://expensegauge-backend.onrender.com/api/v1"
+const API_URL = "https://comfy-chia-overvaliant.ngrok-free.dev/api/v1"
+// const API_URL = "https://expensegauge-backend.onrender.com/api/v1"
 
 
 const api = axios.create({
   baseURL: API_URL,
-  timeout: 50000,
+  timeout: 60000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -49,7 +50,11 @@ api.interceptors.response.use(
     const status = error.response?.status;
     const isRetryableError = !status || (status >= 500 && status <= 599) || status === 408 || status === 404;
 
-    if (isMutation && (!isConnected || isRetryableError)) {
+    const isAuthRequest = originalRequest.url?.includes('/user/login') ||
+      originalRequest.url?.includes('/user/signup') ||
+      originalRequest.url?.includes('/user/google-login');
+
+    if (isMutation && (!isConnected || isRetryableError) && !isAuthRequest) {
       console.error(`Queueing ${originalRequest.method} request due to ${isConnected ? 'retryable error' : 'offline status'}`);
 
       const metadata = originalRequest.headers?.['x-meta']

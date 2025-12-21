@@ -49,9 +49,20 @@ export default function TransactionHistory() {
 
   useEffect(() => {
     setExpenses(prev => {
-      // Merge cached expenses with existing fetched expenses
-      const existingIds = new Set(cachedExpenses.map(exp => exp._id));
-      const extraExpenses = prev.filter(exp => !existingIds.has(exp._id));
+      if (cachedExpenses.length === 0) return [];
+
+      // Get the oldest date in current cache to define the "cached range"
+      const oldestCachedTime = new Date(cachedExpenses[cachedExpenses.length - 1].date).getTime();
+      const cachedIds = new Set(cachedExpenses.map(exp => exp._id));
+
+      // Items in local state that are NOT in cache and are NOT within the cache's date range
+      // This prevents deleted items (which would be in the cache's range but missing from it) from returning
+      const extraExpenses = prev.filter(exp => {
+        const isNotCached = !cachedIds.has(exp._id);
+        const isOlderThanCache = new Date(exp.date).getTime() < oldestCachedTime;
+        return isNotCached && isOlderThanCache;
+      });
+
       return [...cachedExpenses, ...extraExpenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     });
   }, [cachedExpenses]);
@@ -200,7 +211,7 @@ export default function TransactionHistory() {
     <SafeAreaView className="flex-1 dark:bg-gray-900 p-5 pb-20">
       {/* Graph Section */}
       <View className="p-4 pb-0 rounded-xl mb-6 overflow-hidden" style={{ backgroundColor: colorScheme == 'dark' ? '#1E293B' : 'white' }}>
-        {labels.length > 0 ? (
+        {labels.length > 1 ? (
           <>
             <Text className="dark:text-white text-lg font-semibold mb-2">Transaction Trends</Text>
             <ScrollView

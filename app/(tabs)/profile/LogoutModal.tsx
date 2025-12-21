@@ -1,5 +1,5 @@
-import { View, Text, TouchableOpacity } from 'react-native'
-import React from 'react'
+import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native'
+import React, { useState } from 'react'
 import { Feather } from '@expo/vector-icons'
 import { useAuthStore } from '@/store/authStore'
 import api from '@/api/api'
@@ -8,16 +8,20 @@ import { useExpenseStore } from '@/store/expenseStore'
 
 const LogoutModal = ({ setShow }: any) => {
     const { reset, refreshToken } = useAuthStore();
+    const [loading, setLoading] = useState(false);
     const handleLogout = async () => {
+        setLoading(true);
         try {
             const response = await api.post(`/user/logout`, { refreshToken })
             const { setCachedExpenses } = useExpenseStore.getState()
-            setCachedExpenses([],0)
+            setCachedExpenses([], 0)
             reset()
             setShow(false)
             router.replace('/')
         } catch (error) {
             console.error(error);
+        } finally {
+            setLoading(false);
         }
     }
     return (
@@ -32,11 +36,15 @@ const LogoutModal = ({ setShow }: any) => {
                 <View className='p-3 px-10'>
                     <Text className='text-gray-500 dark:text-gray-300 mb-5'>Are you sure you want to logout?</Text>
                     <View className='flex-row gap-4 justify-end mb-2'>
-                        <TouchableOpacity className='border border-gray-300 dark:border-gray-600 rounded-md p-2 px-3' onPress={() => setShow(false)}>
+                        <TouchableOpacity disabled={loading} className='border border-gray-300 dark:border-gray-600 rounded-md p-2 px-3' onPress={() => setShow(false)}>
                             <Text className='dark:text-gray-300'>Cancel</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity className='rounded-md p-2 px-3 bg-red-600' onPress={handleLogout}>
-                            <Text className='text-white'>Logout</Text>
+                        <TouchableOpacity disabled={loading} className='rounded-md p-2 px-3 bg-red-600 flex-row items-center justify-center min-w-[80px]' onPress={handleLogout}>
+                            {loading ? (
+                                <ActivityIndicator size="small" color="#ffffff" />
+                            ) : (
+                                <Text className='text-white'>Logout</Text>
+                            )}
                         </TouchableOpacity>
                     </View>
                 </View>

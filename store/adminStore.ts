@@ -110,13 +110,12 @@ export const useAdminStore = create<AdminStore>()(
                 }
             }),
             markAsSyncedAdmin: (tempId, newIdFromBackend, userId) => set((state) => {
-                let diffAmount = 0
                 return {
                     ...state,
                     cachedUsers: state.cachedUsers.map((item) => {
                         if (item._id === userId) {
                             return {
-                                ...item, expenses: item.expenses.filter((e) =>
+                                ...item, expenses: item.expenses.map((e) =>
                                     e._id === tempId
                                         ? { ...e, _id: newIdFromBackend, isSynced: 'true' }
                                         : e)
@@ -124,7 +123,6 @@ export const useAdminStore = create<AdminStore>()(
                         }
                         return item
                     }),
-                    totalUserBalance: state.totalUserBalance - diffAmount
                 }
             }),
             reset: () =>

@@ -119,9 +119,9 @@ export default function Login() {
         router.navigate('/(tabs)/home');
       }
     } catch (error: any) {
-      console.error("error : ",error);
-      
-      setError((prev) => ({ ...prev, serverError: error.response.data.message }));
+      console.error("error : ", error);
+      const message = error.response?.data?.message || error.message || "An unexpected error occurred";
+      setError((prev) => ({ ...prev, serverError: message }));
     }
     finally {
       setLoading(false);
@@ -240,8 +240,8 @@ export default function Login() {
             {isLogin ? 'Login' : `Sign Up ${role == 'admin' ? "as Admin" : ""}`}
           </Text>
         </TouchableOpacity>
-        
-        <GoogleAuthButton /> 
+
+        <GoogleAuthButton setStatus={setLoading} role={role} />
         {!isLogin && role !== 'admin' &&
           <TouchableOpacity
             onPress={() => router.navigate('/AdminPreview')}
@@ -258,4 +258,5 @@ export default function Login() {
       />
 
     </SafeAreaView >
-  );}
+  );
+}

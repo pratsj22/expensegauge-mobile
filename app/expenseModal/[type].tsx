@@ -26,8 +26,6 @@ import {
   assignBalanceApi,
 } from "@/api/expenseApi";
 
-import LoaderModal from "../expenseModal/LoaderModal";
-
 // ------------------ Constants ------------------
 const categories = [
   { label: "Groceries", value: "Groceries" },
@@ -53,7 +51,6 @@ const ExpenseForm = () => {
   const dropdownRef = useRef<IDropdownRef>(null);
   const timeoutRef = useRef<number | null>(null);
 
-  const [loading, setLoading] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [containerPadding, setContainerPadding] = useState(0);
 
@@ -82,15 +79,23 @@ const ExpenseForm = () => {
   }, [_id]);
 
   useEffect(() => {
-    const hideSub = Keyboard.addListener("keyboardDidHide", () => setContainerPadding(0));
-    return () => hideSub.remove();
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const showSub = Keyboard.addListener(showEvent, (e) => {
+      setContainerPadding(e.endCoordinates.height);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setContainerPadding(0);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
   }, []);
 
   // ------------------ Handlers ------------------
-
-  const handleFocus = () => {
-    setContainerPadding(() => (Platform.OS === "ios" ? 300 : 200));
-  };
 
   const handleCategoryDetect = () => {
     const detected = predictCategory(form.details);
@@ -113,38 +118,38 @@ const ExpenseForm = () => {
 
   // ------------------ Submit Logic ------------------
 
-  const handleAdminSubmit = async () => {
+  const handleAdminSubmit = () => {
     if (!form.details || !form.amount) {
       Toast.error("Please enter details and amount");
       return;
     }
 
-    setLoading(true);
+    const transactionData = buildTransaction();
     try {
-      const transactionData = buildTransaction();
       if (_id) {
         editUserExpenseByAdmin(userIdAdmin, transactionData);
-        await editUserExpenseAdminApi(userIdAdmin, transactionData);
-        markAsSyncedAdmin(_id, _id, userIdAdmin);
+        editUserExpenseAdminApi(userIdAdmin, transactionData).then(() => {
+          markAsSyncedAdmin(_id, _id, userIdAdmin);
+        });
       } else {
-        const newId = await assignBalanceApi(
+        assignBalance(userIdAdmin, transactionData);
+        assignBalanceApi(
           userIdAdmin,
           form.details,
           form.date.toDateString(),
           parseFloat(form.amount)
-        );
-        assignBalance(userIdAdmin, transactionData);
-        markAsSyncedAdmin(transactionData._id, newId, userIdAdmin)
+        ).then((newId) => {
+          if (newId) markAsSyncedAdmin(transactionData._id, newId, userIdAdmin);
+        });
       }
+      Toast.success("Request processed");
       router.back();
     } catch (error) {
       Toast.error("Something went wrong");
-    } finally {
-      setLoading(false);
     }
   };
 
-  const handleUserSubmit = async () => {
+  const handleUserSubmit = () => {
     if (!form.details || !form.amount) {
       Toast.error("Please enter details and amount");
       return;
@@ -152,31 +157,14 @@ const ExpenseForm = () => {
 
     // Optimistic Update: Don't wait for API
     try {
+      const transactionData = buildTransaction();
       if (_id) {
-        const transactionData = buildTransaction();
         editExpense(transactionData);
-        editExpenseApi(transactionData); // Fire and forget
-        markAsSynced(_id, _id); // This might be wrong logic? markAsSynced uses tempId vs newId.
-        // Actually markAsSynced is for when we get ID from backend.
-        // For edit, ID is same.
-        // The store handles optimistic update.
+        editExpenseApi(transactionData).then(() => {
+          markAsSynced(_id, _id);
+        });
       } else {
-        const transactionData = buildTransaction();
         addExpense(transactionData);
-        // We don't wait for ID here. addExpenseApi returns ID but we can't wait if we want speed.
-        // BUT `addExpense` in store uses the ID passed in `transactionData`.
-        // If we don't wait, we save the temp ID in store.
-        // When API competes, we need to update the ID in store.
-        // `addExpenseApi` returns the real ID. 
-        // If we don't await, we can't get the real ID immediately.
-        // We need a callback or a background process to update the ID.
-        // `api.ts` interceptor handles the queue if offline.
-        // If online, `addExpenseApi` executes.
-        // I need to change `addExpenseApi` to handle the store update when it finishes?
-        // Or just let it be. The user says "user should get a confirmation... backend is slow...".
-        // If I fire-and-forget, the user sees the new expense in the list immediately (Store update).
-        // I need to handle the ID update asynchronously.
-
         addExpenseApi(transactionData).then((newId) => {
           if (newId) markAsSynced(transactionData._id, newId);
         });
@@ -196,9 +184,9 @@ const ExpenseForm = () => {
   const textColor = colorScheme === "light" ? "black" : "#d1d5db";
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-700/60 justify-end" style={{ paddingBottom: containerPadding }}>
+    <SafeAreaView className="flex-1 bg-slate-700/60 justify-end" >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <View className="dark:bg-gray-900 bg-white w-full rounded-lg p-5 items-center">
+        <View className="dark:bg-gray-900 bg-white w-full rounded-lg p-5 items-center" style={{ paddingBottom: containerPadding }}>
           {/* Header */}
           <View className="mb-10 relative w-full">
             <Text className="text-center text-xl dark:text-gray-200">
@@ -215,7 +203,6 @@ const ExpenseForm = () => {
             placeholder="Enter details"
             value={form.details}
             onChangeText={(v) => updateForm("details", v)}
-            onFocus={handleFocus}
             onBlur={handleCategoryDetect} // ✅ Restored original behavior
           />
 
@@ -226,7 +213,6 @@ const ExpenseForm = () => {
             keyboardType="number-pad"
             value={form.amount}
             onChangeText={(v) => updateForm("amount", v)}
-            onFocus={handleFocus}
           />
 
           {/* Category Dropdown (for debit) */}
@@ -300,17 +286,7 @@ const ExpenseForm = () => {
         </View>
       </TouchableWithoutFeedback>
 
-      {/* Loader */}
-      <LoaderModal
-        visible={loading}
-        message={
-          _id
-            ? "Updating expense..."
-            : userIdAdmin
-              ? "Assigning balance to user..."
-              : "Adding expense..."
-        }
-      />
+
     </SafeAreaView>
   );
 };

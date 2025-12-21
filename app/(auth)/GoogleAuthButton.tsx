@@ -4,15 +4,16 @@ import api from "@/api/api";
 import { useAuthStore } from "@/store/authStore";
 import { useRouter } from "expo-router";
 
-export default function GoogleAuthButton() {
+export default function GoogleAuthButton({ setStatus, role }: { setStatus: (loading: boolean) => void, role?: string }) {
   const router = useRouter();
   const { setTokens, setUser } = useAuthStore();
 
   const signInWithGoogle = async () => {
     try {
+      setStatus(true);
       // Ensure Google Play Services is available
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-      
+
       // Force Google to show account chooser every time
       await GoogleSignin.signOut();
 
@@ -22,12 +23,11 @@ export default function GoogleAuthButton() {
       const { idToken } = await GoogleSignin.getTokens();
 
       if (!idToken) {
-        console.error("No idToken received from Google");
-        return;
+        throw new Error("No idToken received from Google");
       }
 
       // Send to your backend
-      const res = await api.post("/user/google-login", { idToken });
+      const res = await api.post("/user/google-login", { idToken, role: role ?? "user" });
 
       setTokens(res.data.accessToken, res.data.refreshToken);
       setUser(res.data.name, res.data.email, res.data.role ?? "user");
@@ -35,6 +35,12 @@ export default function GoogleAuthButton() {
       router.replace("/(tabs)/home");
     } catch (error: any) {
       console.error("Google Sign-In Error:", error);
+      // Optional: Add a toast or alert here for user feedback
+      if (error.code !== 'SIGN_IN_CANCELLED' && error.code !== 'SIGN_IN_IN_PROGRESS') {
+        alert(error.message || "Google Sign-In failed. Please try again.");
+      }
+    } finally {
+      setStatus(false);
     }
   };
 
