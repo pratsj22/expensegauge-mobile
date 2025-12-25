@@ -1,50 +1,82 @@
-# Welcome to your Expo app 👋
+# ExpenseGauge 📊
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+ExpenseGauge is a high-performance, cross-platform expense management application built with Expo and React Native. It features a robust **offline-first architecture**, **intelligent expense classification**, and a sophisticated administrative ecosystem.
 
-## Get started
+## ✨ Features
 
-1. Install dependencies
+- **🛡️ Secure Authentication**: Google Sign-in integration for seamless and secure user access.
+- **☁️ Offline-First Strategy**: 
+  - **Optimistic Updates**: Immediate UI feedback for all transactions.
+  - **Sync Queue**: Automatic background synchronization of queued requests when connectivity is restored.
+- **🤖 Intelligent Categorization**: Integrated Bayes classifier (`categoryDetector.js`) for automatic expense category prediction based on descriptions.
+- **� Advanced Visualizations**: Monthly spending trends and category breakdowns via `react-native-chart-kit`.
+- **👥 Admin Suite**: Specialized dashboards for user oversight, balance adjustments, and transaction auditing.
+- **🌓 Adaptive Theming**: Persistent light and dark mode support with automatic system preference detection.
 
+## 🛠️ Tech Stack
+
+### Framework & Core
+- **Engine**: [Expo](https://expo.dev/) (React Native 0.81.5)
+- **Framework**: [Expo](https://expo.dev/) (React Native)
+- **Routing**: [Expo Router](https://docs.expo.dev/router/introduction/) (Link-based navigation)
+- **Styling**: [NativeWind](https://www.nativewind.dev/) (Tailwind CSS for React Native)
+- **State Management**: [Zustand](https://www.npmjs.com/package/zustand)
+- **UI Components**:
+  - [React Native Paper](https://www.npmjs.com/package/react-native-paper) (Main UI Lib)
+  - [React Native Element Dropdown](https://www.npmjs.com/package/react-native-element-dropdown)
+  - [Expo Vector Icons](https://docs.expo.dev/guides/icons/) (Feather, FontAwesome)
+  - [React Native Community DateTimePicker](https://www.npmjs.com/package/@react-native-community/datetimepicker)
+  - [Toastify React Native](https://www.npmjs.com/package/toastify-react-native)
+- **API Client**: [Axios](https://axios-http.com/) with `axios-retry`
+- **Charts**: [React Native Chart Kit](https://www.npmjs.com/package/react-native-chart-kit)
+- **Data Persistence**: [Async Storage](https://www.npmjs.com/package/@react-native-async-storage/async-storage) & [Secure Store](https://docs.expo.dev/versions/latest/sdk/securestore/)
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- Node.js (Latest LTS)
+- npm or yarn
+- Expo Go app on your mobile device (for testing)
+
+### Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd expensegauge-mobile
+   ```
+
+2. **Install dependencies**
    ```bash
    npm install
    ```
 
-2. Start the app
 
+3. **Start the development server**
    ```bash
    npx expo start
    ```
 
-In the output, you'll find options to open the app in a
+## 🏗️ Building for Production
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+To build the production version (AAB for Play Store):
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+1. **Install EAS CLI**
+   ```bash
+   npm install -g eas-cli
+   ```
 
-## Get a fresh project
+2. **Build Android App Bundle**
+   ```bash
+   eas build -p android --profile production
+   ```
 
-When you're ready, run:
+2. **Testing APK**
+   ```bash
+   eas build -p android --profile preview
+   ```
 
-```bash
-npm run reset-project
-```
+---
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Made with ❤️ by [spider22](https://github.com/spider22)
