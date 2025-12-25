@@ -1,4 +1,4 @@
-import { View, Text, SafeAreaView, useColorScheme,Appearance } from 'react-native'
+import { View, Text, SafeAreaView, Appearance } from 'react-native'
 import React, { useState } from 'react'
 import { RadioButton } from 'react-native-paper';
 import { Feather, FontAwesome } from '@expo/vector-icons';
@@ -6,7 +6,6 @@ import { useThemeStore } from '@/store/themeStore';
 
 
 const Theme = () => {
-    const colorScheme = useColorScheme();
     const{setTheme,theme}= useThemeStore()
     const [current, setCurrent] = useState(theme);
     const applyTheme = async (theme: 'light' | 'dark' | null) => {
