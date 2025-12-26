@@ -1,5 +1,5 @@
 import { Link, useLocalSearchParams, useRouter } from "expo-router";
-import { Text, TextInput, TouchableOpacity, View, Animated } from "react-native";
+import { Text, TextInput, TouchableOpacity, View, Animated, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useState } from "react";
 import api from "@/api/api";
@@ -109,13 +109,13 @@ export default function Login() {
       if (isLogin) {
         const response = await api.post(`/user/login`, { email, password }) // Changed from username to email
         setTokens(response.data.accessToken, response.data.refreshToken);
-        setUser(response.data.name, response.data.email, response.data.role); // Changed username to email
+        setUser(response.data.name, response.data.email, response.data.role, response.data.profilePicture); // Changed username to email
         router.navigate('/(tabs)/home');
       }
       else {
         const response = await api.post(`/user/signup`, { name, email, password, role: role }) // Changed from username to email
         setTokens(response.data.accessToken, response.data.refreshToken);
-        setUser(name, email, role); // Changed username to email
+        setUser(name, email, role, response.data.profilePicture); // Changed username to email
         router.navigate('/(tabs)/home');
       }
     } catch (error: any) {
@@ -131,132 +131,135 @@ export default function Login() {
 
 
   return (
-    <SafeAreaView className="flex-1 p-6 dark:bg-gray-900 ">
-      <View className="flex-[0.5] justify-center items-center">
-        <Text className="text-4xl font-bold dark:text-white mb-2">ExpenseGauge</Text>
-        <Text className="dark:text-gray-400 text-gray-600 text-center">
-          Manage your finances with ease
-        </Text>
-      </View>
-      <Text className="text-2xl text-center font-bold dark:text-white text-gray-800 mb-6">
-        {isLogin ? 'Welcome Back' : `Create Account ${role === 'admin' ? "as Admin" : ""}`}
-      </Text>
-      <View className="flex gap-5 space-y-6">
-        {error.serverError && <Text className="text-red-600 -mt-4 -mb-1 px-3 text-center">{error.serverError}</Text>}
+    <SafeAreaView className="flex-1 dark:bg-gray-900 bg-white">
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        className="flex-1"
+      >
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, padding: 24, justifyContent: `center` }}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Text className="text-2xl text-center font-bold dark:text-white text-gray-800 mb-6">
+            {isLogin ? 'Welcome Back' : `Create Account ${role === 'admin' ? "as Admin" : ""}`}
+          </Text>
+          <View className="flex gap-5 space-y-6">
+            {error.serverError && <Text className="text-red-600 -mt-4 -mb-1 px-3 text-center">{error.serverError}</Text>}
 
-        {!isLogin &&
-          <>
+            {!isLogin &&
+              <>
+                <TextInput
+                  className="dark:bg-gray-800 bg-white dark:text-white p-4 rounded-lg text-lg"
+                  placeholder="Full Name"
+                  placeholderTextColor="#9CA3AF"
+                  onChangeText={setName}
+                />
+                {error.nameError && <Text className="text-red-600 -mt-4 -mb-1 px-3">{error.nameError}</Text>}
+              </>
+            }
             <TextInput
               className="dark:bg-gray-800 bg-white dark:text-white p-4 rounded-lg text-lg"
-              placeholder="Full Name"
+              placeholder="Email"
               placeholderTextColor="#9CA3AF"
-              onChangeText={setName}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
             />
-            {error.nameError && <Text className="text-red-600 -mt-4 -mb-1 px-3">{error.nameError}</Text>}
-          </>
-        }
-        <TextInput
-          className="dark:bg-gray-800 bg-white dark:text-white p-4 rounded-lg text-lg"
-          placeholder="Email"
-          placeholderTextColor="#9CA3AF"
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
-        {error.emailError && <Text className="text-red-600 -mt-4 -mb-1 px-3">{error.emailError}</Text>}
+            {error.emailError && <Text className="text-red-600 -mt-4 -mb-1 px-3">{error.emailError}</Text>}
 
-        <TextInput
-          className={`dark:bg-gray-800 bg-white text-white p-4 rounded-lg text-lg ${passwordInvalid ? 'border-2 border-red-500' : ''}`}
-          placeholder="Password"
-          placeholderTextColor="#9CA3AF"
-          onChangeText={(text) => {
-            setPassword(text);
-            validatePasswordPolicy(text);
-            setPasswordInvalid(false);
-          }}
-          onFocus={() => setIsPasswordFocused(true)}
-          onBlur={() => {
-            setIsPasswordFocused(false);
-            const valid = validatePasswordPolicy(password);
-            setPasswordInvalid(!valid);
-            if (!valid) triggerShake();
-          }}
-          secureTextEntry
-        />
-        {error.passwordError && <Text className="text-red-600 -mt-4 -mb-1 px-3">{error.passwordError}</Text>}
-        {!isLogin && (isPasswordFocused || passwordInvalid) && (
-          <Animated.View
-            style={{
-              transform: [{ translateX: shakeAnim }],
-              borderWidth: passwordInvalid ? 2 : 0,
-              borderColor: passwordInvalid ? '#ef4444' : 'transparent',
-              borderRadius: 8,
-            }}
-            className={`bg-gray-200 dark:bg-gray-800 w-full mb-4 p-3 rounded-lg`}
-          >
-            <Text className="text-gray-400 font-semibold mb-1">Password policy</Text>
-            <View>
-              <Text className={`text-sm mt-[0.5] ${policyStatus.length ? 'text-green-500' : 'text-gray-500 dark:text-gray-400'}`}>
-                &bull; Minimum 8 characters
-              </Text>
-              <Text className={`text-sm mt-[0.5] ${policyStatus.upper ? 'text-green-500' : 'text-gray-500 dark:text-gray-400'}`}>
-                &bull; At least one uppercase letter
-              </Text>
-              <Text className={`text-sm mt-[0.5] ${policyStatus.lower ? 'text-green-500' : 'text-gray-500 dark:text-gray-400'}`}>
-                &bull; At least one lowercase letter
-              </Text>
-              <Text className={`text-sm mt-[0.5] ${policyStatus.number ? 'text-green-500' : 'text-gray-500 dark:text-gray-400'}`}>
-                &bull; At least one number
-              </Text>
-              <Text className={`text-sm mt-[0.5] ${policyStatus.special ? 'text-green-500' : 'text-gray-500 dark:text-gray-400'}`}>
-                &bull; At least one special character
-              </Text>
+            <TextInput
+              className={`dark:bg-gray-800 bg-white text-white p-4 rounded-lg text-lg ${passwordInvalid ? 'border-2 border-red-500' : ''}`}
+              placeholder="Password"
+              placeholderTextColor="#9CA3AF"
+              onChangeText={(text) => {
+                setPassword(text);
+                validatePasswordPolicy(text);
+                setPasswordInvalid(false);
+              }}
+              onFocus={() => setIsPasswordFocused(true)}
+              onBlur={() => {
+                setIsPasswordFocused(false);
+                const valid = validatePasswordPolicy(password);
+                setPasswordInvalid(!valid);
+                if (!valid) triggerShake();
+              }}
+              secureTextEntry
+            />
+            {error.passwordError && <Text className="text-red-600 -mt-4 -mb-1 px-3">{error.passwordError}</Text>}
+            {!isLogin && (isPasswordFocused || passwordInvalid) && (
+              <Animated.View
+                style={{
+                  transform: [{ translateX: shakeAnim }],
+                  borderWidth: passwordInvalid ? 2 : 0,
+                  borderColor: passwordInvalid ? '#ef4444' : 'transparent',
+                  borderRadius: 8,
+                }}
+                className={`bg-gray-200 dark:bg-gray-800 w-full mb-4 p-3 rounded-lg`}
+              >
+                <Text className="text-gray-400 font-semibold mb-1">Password policy</Text>
+                <View>
+                  <Text className={`text-sm mt-[0.5] ${policyStatus.length ? 'text-green-500' : 'text-gray-500 dark:text-gray-400'}`}>
+                    &bull; Minimum 8 characters
+                  </Text>
+                  <Text className={`text-sm mt-[0.5] ${policyStatus.upper ? 'text-green-500' : 'text-gray-500 dark:text-gray-400'}`}>
+                    &bull; At least one uppercase letter
+                  </Text>
+                  <Text className={`text-sm mt-[0.5] ${policyStatus.lower ? 'text-green-500' : 'text-gray-500 dark:text-gray-400'}`}>
+                    &bull; At least one lowercase letter
+                  </Text>
+                  <Text className={`text-sm mt-[0.5] ${policyStatus.number ? 'text-green-500' : 'text-gray-500 dark:text-gray-400'}`}>
+                    &bull; At least one number
+                  </Text>
+                  <Text className={`text-sm mt-[0.5] ${policyStatus.special ? 'text-green-500' : 'text-gray-500 dark:text-gray-400'}`}>
+                    &bull; At least one special character
+                  </Text>
+                </View>
+              </Animated.View>
+            )}
+
+            {!isLogin && <TextInput
+              className="dark:bg-gray-800 bg-white dark:text-white p-4 rounded-lg text-lg"
+              placeholder="Confirm Password"
+              placeholderTextColor="#9CA3AF"
+              onBlur={validatePasswords}
+              onChangeText={setConfirmPassword}
+              secureTextEntry
+            />}
+            {error.passwordvalidationError && <Text className="text-red-600 -mt-4 -mb-1 px-3">{error.passwordvalidationError}</Text>}
+            <View className="flex-row justify-end -mt-2">
+              <Link href={{
+                pathname: `/forgotCredentials`,
+              }} asChild>
+                <TouchableOpacity>
+                  <Text className="text-indigo-400 text-sm">Forgot Password?</Text>
+                </TouchableOpacity>
+              </Link>
             </View>
-          </Animated.View>
-        )}
 
-        {!isLogin && <TextInput
-          className="dark:bg-gray-800 bg-white dark:text-white p-4 rounded-lg text-lg"
-          placeholder="Confirm Password"
-          placeholderTextColor="#9CA3AF"
-          onBlur={validatePasswords}
-          onChangeText={setConfirmPassword}
-          secureTextEntry
-        />}
-        {error.passwordvalidationError && <Text className="text-red-600 -mt-4 -mb-1 px-3">{error.passwordvalidationError}</Text>}
-        <View className="flex-row justify-end -mt-2">
-          <Link href={{
-            pathname: `/forgotCredentials`,
-          }} asChild>
-            <TouchableOpacity>
-              <Text className="text-indigo-400 text-sm">Forgot Password?</Text>
+            <TouchableOpacity disabled={buttonDisabled} className="bg-indigo-600 disabled:bg-indigo-300 py-4 rounded-lg"
+              onPress={handleVerify}>
+              <Text className="text-white text-center text-lg font-semibold">
+                {isLogin ? 'Login' : `Sign Up ${role == 'admin' ? "as Admin" : ""}`}
+              </Text>
             </TouchableOpacity>
-          </Link>
-        </View>
 
-        <TouchableOpacity disabled={buttonDisabled} className="bg-indigo-600 disabled:bg-indigo-300 py-4 rounded-lg"
-          onPress={handleVerify}>
-          <Text className="text-white text-center text-lg font-semibold">
-            {isLogin ? 'Login' : `Sign Up ${role == 'admin' ? "as Admin" : ""}`}
-          </Text>
-        </TouchableOpacity>
-
-        <GoogleAuthButton setStatus={setLoading} role={role} />
-        {!isLogin && role !== 'admin' &&
-          <TouchableOpacity
-            onPress={() => router.navigate('/AdminPreview')}
-            className="mt-4 p-4 bg-gray-700 rounded-xl"
-          >
-            <Text className="text-white text-center font-semibold">
-              👨‍💼 Try Admin View
-            </Text>
-          </TouchableOpacity>}
-      </View>
-      <LoaderModal
-        visible={loading}
-        message={isLogin ? "Logging you in..." : "Creating your account..."}
-      />
-
+            <GoogleAuthButton setStatus={setLoading} role={role} />
+            {!isLogin && role !== 'admin' &&
+              <TouchableOpacity
+                onPress={() => router.navigate('/AdminPreview')}
+                className="mt-4 p-4 bg-gray-700 rounded-xl"
+              >
+                <Text className="text-white text-center font-semibold">
+                  👨‍💼 Try Admin View
+                </Text>
+              </TouchableOpacity>}
+          </View>
+          <LoaderModal
+            visible={loading}
+            message={isLogin ? "Logging you in..." : "Creating your account..."}
+          />
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView >
   );
 }

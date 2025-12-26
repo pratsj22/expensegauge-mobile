@@ -7,6 +7,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import LogoutModal from './LogoutModal';
 import api from '@/api/api';
 import { Toast } from 'toastify-react-native';
+import Avatar from '@/components/Avatar';
+import { TextInput } from 'react-native';
 
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useColorScheme, Modal, Platform } from 'react-native';
@@ -15,7 +17,26 @@ const UserProfileScreen: React.FC = () => {
   const router = useRouter()
   const user = useAuthStore((state) => state.name);
   const email = useAuthStore((state) => state.email);
+  const profilePicture = useAuthStore((state) => state.profilePicture);
+  const setUser = useAuthStore((state) => state.setUser);
+  const role = useAuthStore((state) => state.role);
+
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [newName, setNewName] = useState(user || '');
+
+  const handleSaveName = async () => {
+    try {
+      if (!newName.trim()) return Toast.error("Name cannot be empty");
+      const res = await api.put('/user/update-profile', { name: newName });
+      // Update store
+      setUser(res.data.name, email!, role!, res.data.profilePicture);
+      setIsEditing(false);
+      Toast.success("Name updated successfully");
+    } catch (error) {
+      Toast.error("Failed to update name");
+    }
+  }
 
   // Unified Report Modal State
   const [showReportModal, setShowReportModal] = useState(false);
@@ -108,11 +129,31 @@ const UserProfileScreen: React.FC = () => {
     <SafeAreaView className='dark:bg-gray-900 bg-white' style={{ flex: 1 }}>
       <ScrollView className="px-6 pt-10" contentContainerStyle={{ paddingBottom: 32 }}>
         <View className="items-center mb-6">
-          <Image
-            source={{ uri: 'https://i.pravatar.cc/150?img=12' }}
-            className="w-24 h-24 rounded-full mb-3"
-          />
-          <Text className="text-xl font-bold text-gray-900 dark:text-white">{user}</Text>
+          <Avatar uri={profilePicture} name={user || 'User'} size={100} />
+          <View className="flex-row items-center mt-3 gap-2">
+            {isEditing ? (
+              <View className="flex-row items-center gap-2">
+                <TextInput
+                  value={newName}
+                  onChangeText={setNewName}
+                  className="border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-xl font-bold text-gray-900 dark:text-white min-w-[150px] text-center"
+                />
+                <TouchableOpacity onPress={handleSaveName}>
+                  <Feather name="check" size={20} color="#16a34a" />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => { setIsEditing(false); setNewName(user || '') }}>
+                  <Feather name="x" size={20} color="#dc2626" />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <>
+                <Text className="text-xl font-bold text-gray-900 dark:text-white">{user}</Text>
+                <TouchableOpacity onPress={() => setIsEditing(true)}>
+                  <Feather name="edit-2" size={16} color={isDark ? '#9ca3af' : '#4b5563'} />
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
           <Text className="text-sm text-gray-500 dark:text-gray-400">{email}</Text>
         </View>
 

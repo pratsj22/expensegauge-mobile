@@ -30,7 +30,7 @@ export default function GoogleAuthButton({ setStatus, role }: { setStatus: (load
       const res = await api.post("/user/google-login", { idToken, role: role ?? "user" });
 
       setTokens(res.data.accessToken, res.data.refreshToken);
-      setUser(res.data.name, res.data.email, res.data.role ?? "user");
+      setUser(res.data.name, res.data.email, res.data.role ?? "user", res.data.profilePicture);
 
       router.replace("/(tabs)/home");
     } catch (error: any) {
@@ -47,9 +47,9 @@ export default function GoogleAuthButton({ setStatus, role }: { setStatus: (load
   return (
     <TouchableOpacity
       onPress={signInWithGoogle}
-      className="dark:bg-gray-800 p-4 rounded-lg mt-4 flex-row items-center gap-2 justify-center"
+      className="bg-white border border-gray-300 dark:border-0 dark:bg-gray-800 p-4 rounded-lg mt-4 flex-row items-center gap-2 justify-center"
     >
-      <Text className="text-center text-white font-semibold">
+      <Text className="text-center text-gray-700 dark:text-white font-semibold">
         Continue with Google
       </Text>
 

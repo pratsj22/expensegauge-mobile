@@ -9,8 +9,9 @@ type AuthStore = {
   admin: string | null;
   accessToken: string | null;
   refreshToken: string | null;
+  profilePicture: string | null;
   setTokens: (access: string, refresh: string) => void;
-  setUser: (name: string, email: string, role: string) => void;
+  setUser: (name: string, email: string, role: string, profilePicture?: string) => void;
   clearTokens: () => void;
   reset: () => void;
 };
@@ -24,8 +25,9 @@ export const useAuthStore = create<AuthStore>()(
       admin: null,
       accessToken: null,
       refreshToken: null,
+      profilePicture: null,
       setTokens: (access, refresh) => set({ accessToken: access, refreshToken: refresh }),
-      setUser: (name, email, role) => set({ name: name, email: email, role: role }),
+      setUser: (name, email, role, profilePicture) => set({ name: name, email: email, role: role, profilePicture: profilePicture || null }),
       clearTokens: () => set({ accessToken: null, refreshToken: null }),
       reset: () => set(() => {
         return {
@@ -35,6 +37,7 @@ export const useAuthStore = create<AuthStore>()(
           admin: null,
           accessToken: null,
           refreshToken: null,
+          profilePicture: null,
         }
       }),
     }),
