@@ -61,16 +61,7 @@ export default function Index() {
         setShowDeleteModal(false)
     }
     const colorScheme = useColorScheme();
-    // const totalUserBalance = useMemo(() => {
-    //     const initialValue = 0;
-    //     const sumWithInitial = users.reduce(
-    //         (accumulator, currentValue) => accumulator + currentValue.netBalance,
-    //         initialValue,
-    //     );
-    //     return sumWithInitial
-    // }, [users])
     const fetchUsers = async () => {
-        // return
         setRefreshing(true)
         try {
             const response = await api.get(`/admin/users/`);
@@ -94,7 +85,7 @@ export default function Index() {
     return (
         <SafeAreaView className="flex-1 p-4 dark:bg-gray-900 bg-white">
             <View className="px-2 py-2 flex-row justify-between items-center mb-4">
-                <Text className="text-lg font-bold text-gray-800 dark:text-white">Hello {user} 👋</Text>
+                <Text className="text-lg font-bold text-gray-800 dark:text-white">Hello {user?.split(' ')[0]}</Text>
                 <TouchableOpacity onPress={() => router.navigate('/(tabs)/home/registeruser')} className="flex-row items-center">
                     <Feather name="user-plus" size={16} color={colorScheme == 'light' ? "#3730a3" : "#818cf8"} />
                     <Text className="dark:text-indigo-400 text-indigo-800 dark:font-normal font-semibold text-lg p-2 px-2 rounded-lg">Register User</Text>
