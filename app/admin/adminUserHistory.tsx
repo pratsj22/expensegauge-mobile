@@ -29,14 +29,22 @@ const screenWidth = Dimensions.get('window').width;
 
 export default function TransactionHistory() {
   const { userindex, userId } = useLocalSearchParams<Record<string, string>>()
+  const { activeUser, setActiveUser } = useAdminStore();
   const cachedUsers = useAdminStore((state) => state.cachedUsers);
   const { removeUserExpenseByAdmin } = useAdminStore()
 
-  const [user, setUser] = useState<User | null>(() => {
-    if (userId) return cachedUsers.find(u => u._id === userId) || null;
-    if (userindex) return cachedUsers[parseInt(userindex)] || null;
-    return null;
-  });
+  // Set active user on mount or param change
+  useEffect(() => {
+    let foundUser = null;
+    if (userId) foundUser = cachedUsers.find(u => u._id === userId) || null;
+    else if (userindex) foundUser = cachedUsers[parseInt(userindex)] || null;
+
+    if (foundUser) {
+      setActiveUser(foundUser);
+    }
+  }, [userId, userindex]);
+
+  const user = activeUser;
 
   const [expenses, setExpenses] = useState<Transaction[]>(user?.expenses || []);
 
@@ -44,10 +52,11 @@ export default function TransactionHistory() {
     if (!userId) return;
     try {
       const response = await api.get(`/admin/user/${userId}`);
-      setUser(prev => {
-        if (!prev) return { ...response.data, expenses: [] };
-        return { ...response.data, expenses: prev.expenses };
-      });
+      if (activeUser) {
+        setActiveUser({ ...response.data, expenses: activeUser.expenses })
+      } else {
+        setActiveUser({ ...response.data, expenses: [] })
+      }
     } catch (error) {
       console.error("Failed to fetch user data", error);
     }
@@ -163,7 +172,7 @@ export default function TransactionHistory() {
     }
   };
   useEffect(() => {
-    if (user && expenses.length < 10) {
+    if (user && expenses.length < 10 && !user.expenses.length) {
       fetchExpenses()
     }
   }, [user]);

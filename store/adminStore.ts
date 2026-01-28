@@ -21,8 +21,10 @@ type User = {
 
 type AdminStore = {
     cachedUsers: User[];
+    activeUser: User | null;
     totalUserBalance: number;
     LastSyncedAt: string;
+    setActiveUser: (user: User | null) => void;
     addUser: (data: User) => void;
     setCachedUsers: (data: User[], balance: number) => void;
     assignBalance: (id: string, expense: Transaction) => void;
@@ -37,8 +39,10 @@ export const useAdminStore = create<AdminStore>()(
     persist(
         (set) => ({
             cachedUsers: [],
+            activeUser: null,
             totalUserBalance: 0,
             LastSyncedAt: new Date(Date.now()).toLocaleString(),
+            setActiveUser: (user) => set({ activeUser: user }),
             setCachedUsers: (data: User[], balance) => set((state) => ({
                 cachedUsers: data.slice(0, 5).map(user => ({
                     ...user,
@@ -61,6 +65,11 @@ export const useAdminStore = create<AdminStore>()(
             assignBalance: (id, expense) =>
                 set((state) => ({
                     ...state,
+                    activeUser: state.activeUser?._id === id ? {
+                        ...state.activeUser,
+                        netBalance: (state.activeUser.netBalance + expense.amount),
+                        expenses: [expense, ...state.activeUser.expenses]
+                    } : state.activeUser,
                     cachedUsers: state.cachedUsers.map((item) => (
                         item._id === id ? {
                             ...item,
@@ -80,6 +89,17 @@ export const useAdminStore = create<AdminStore>()(
                 let diffAmount = 0
                 return {
                     ...state,
+                    activeUser: state.activeUser?._id === id ? {
+                        ...state.activeUser,
+                        expenses: state.activeUser.expenses.map((it) => {
+                            if (it._id === data._id) {
+                                diffAmount = data.amount - it.amount; // Note: this calculates diff for activeUser separately, but logic is same
+                                return { ...data }
+                            }
+                            return it
+                        }),
+                        netBalance: state.activeUser.netBalance + (data.amount - (state.activeUser.expenses.find(e => e._id === data._id)?.amount || 0))
+                    } : state.activeUser,
                     cachedUsers: state.cachedUsers.map((item) => {
                         if (item._id === id) {
                             return {
@@ -101,13 +121,17 @@ export const useAdminStore = create<AdminStore>()(
                 let diffAmount = 0
                 return {
                     ...state,
+                    activeUser: state.activeUser?._id === id ? {
+                        ...state.activeUser,
+                        expenses: state.activeUser.expenses.filter((it) => it._id !== data._id),
+                        netBalance: state.activeUser.netBalance - data.amount
+                    } : state.activeUser,
                     cachedUsers: state.cachedUsers.map((item) => {
                         if (item._id === id) {
                             return {
                                 ...item, expenses: item.expenses.filter((it) => {
                                     if (it._id === data._id) {
                                         diffAmount = data.amount
-
                                         return false
                                     }
                                     return true
@@ -122,6 +146,13 @@ export const useAdminStore = create<AdminStore>()(
             markAsSyncedAdmin: (tempId, newIdFromBackend, userId) => set((state) => {
                 return {
                     ...state,
+                    activeUser: state.activeUser?._id === userId ? {
+                        ...state.activeUser,
+                        expenses: state.activeUser.expenses.map((e) =>
+                            e._id === tempId
+                                ? { ...e, _id: newIdFromBackend, isSynced: 'true' }
+                                : e)
+                    } : state.activeUser,
                     cachedUsers: state.cachedUsers.map((item) => {
                         if (item._id === userId) {
                             return {
