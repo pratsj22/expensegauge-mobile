@@ -46,7 +46,6 @@ export default function adminUserView() {
   const user = activeUser;
 
   const [refreshing, setRefreshing] = useState(false)
-  const [hasMore, setHasMore] = useState(true);
   const [expenses, setExpenses] = useState<Transaction[]>(user?.expenses || []);
 
   const fetchUserData = async () => {
@@ -71,8 +70,6 @@ export default function adminUserView() {
 
   useEffect(() => {
     if (user) {
-      // If sorting is needed, we might need to do it here, but usually optimistic UI puts new one at top
-      // which matches the store's [expense, ...others] logic.
       setExpenses(user.expenses);
     }
   }, [user]);
@@ -103,13 +100,11 @@ export default function adminUserView() {
   }
 
   const fetchExpenses = async () => {
-    if (!user?._id) return;
+    if (!user?._id || refreshing) return;
     setRefreshing(true)
 
     try {
-      const limit = 10;
       const response = await api.get(`/admin/expenses/${user._id}`);
-      setHasMore(response.data.hasMore)
       const sortedExpenses = [...response.data.expenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       setExpenses(sortedExpenses);
     } catch (err) {
@@ -119,7 +114,7 @@ export default function adminUserView() {
   };
 
   useEffect(() => {
-    if (user && expenses.length < 10 && !user.expenses.length) {
+    if (user && expenses.length === 0) {
       fetchExpenses()
     }
   }, [user])
@@ -162,14 +157,14 @@ export default function adminUserView() {
       {/* Recent Transactions */}
       <View className="flex-row justify-between items-center my-4">
         <Text className="dark:text-white text-gray-800 text-lg font-semibold">Recent Transactions</Text>
-        {<TouchableOpacity onPress={() => router.navigate(`/admin/adminUserHistory?userindex=${userindex}&userId=${user._id}`)}>
+        {expenses.length > 7 && <TouchableOpacity onPress={() => router.navigate(`/admin/adminUserHistory?userindex=${userindex}&userId=${user._id}`)}>
           <Text className="dark:text-indigo-400 text-indigo-800 dark:font-normal font-semibold text-lg">View All</Text>
         </TouchableOpacity>}
       </View>
 
       {expenses[0] &&
         <FlatList
-          data={expenses.slice(0, 10)}
+          data={expenses.slice(0, 7)}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={fetchExpenses} />
           }

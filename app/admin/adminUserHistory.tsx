@@ -1,5 +1,6 @@
-import { View, Text, FlatList, Dimensions, useColorScheme } from 'react-native';
-import { useEffect, useState } from 'react';
+import { View, Text, FlatList, Dimensions, useColorScheme, RefreshControl } from 'react-native';
+import { useEffect, useState, useRef } from 'react';
+import { ScrollView } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
 import api from '@/api/api';
 import { ActivityIndicator } from 'react-native-paper';
@@ -79,6 +80,7 @@ export default function TransactionHistory() {
   const [loading, setLoading] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const handleTransactionPress = (transaction: Transaction) => {
     setSelectedTransaction(
       selectedTransaction?._id === transaction._id ? null : transaction
@@ -133,9 +135,22 @@ export default function TransactionHistory() {
       debitData.push(totalDebit);
       creditData.push(totalCredit);
     });
+    // Add dummy starting values to avoid dot-on-axis issue
+    if (debitData.length > 0) debitData.unshift(0);
+    if (creditData.length > 0) creditData.unshift(0);
+    labels.unshift(""); // empty label for the first dummy point
 
     return { labels, debitData, creditData };
   };
+  const tooltipTimeout = useRef<any>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const [tooltip, setTooltip] = useState<{
+    x: number;
+    y: number;
+    value: number;
+    visible: boolean;
+    type: 'Debit' | 'Credit';
+  } | null>(null);
   const colorScheme = useColorScheme()
 
   const { labels, debitData, creditData } = getGraphData();
@@ -153,26 +168,37 @@ export default function TransactionHistory() {
     },
   };
 
-  const fetchExpenses = async () => {
-    if (!user?._id) return;
-    if (loading || !hasMore) return;
+  const fetchExpenses = async (isRefresh = false) => {
+    if (!user?._id || loading || (!isRefresh && !hasMore)) return;
 
     setLoading(true);
+    if (isRefresh) setRefreshing(true);
+
     try {
       const limit = 10;
-      const response = await api.get(`/admin/expenses/${user._id}/?offset=${offset}&limit=${limit}`);
+      const currentOffset = isRefresh ? 0 : offset;
+      const response = await api.get(`/admin/expenses/${user._id}/?offset=${currentOffset}&limit=${limit}`);
 
-      setExpenses(prev => [...response.data.expenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-      setOffset(prev => prev + limit);
+      setExpenses(prev => {
+        const fetched = response.data.expenses;
+        const merged = isRefresh ? fetched : [...prev, ...fetched];
+        return [...merged].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      });
+      setOffset(isRefresh ? limit : prev => prev + limit);
       setHasMore(response.data.hasMore);
     } catch (err) {
       console.error('Failed to fetch expenses', err);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
+
+  const handleRefresh = () => {
+    fetchExpenses(true);
+  };
   useEffect(() => {
-    if (user && expenses.length < 10 && !user.expenses.length) {
+    if (user && expenses.length === 0) {
       fetchExpenses()
     }
   }, [user]);
@@ -185,28 +211,101 @@ export default function TransactionHistory() {
     )
   }
 
+  // Calculate dynamic width: min width is screenWidth, but if more than 3 months, expand.
+  // Using similar logic to history/index.tsx
+  const chartWidth = Math.max(screenWidth * 0.9, (labels.length - 1) * (screenWidth * 0.3));
+
   return (
     <View className="flex-1 dark:bg-gray-900 p-5 pb-20">
       {/* Graph Section */}
-      <View className="p-4 pb-0 rounded-xl mb-6 overflow-hidden" style={{ backgroundColor: colorScheme == 'dark' ? '#1E293B' : 'white' }}>
-        {labels.length > 0 ? (
+      <View className="p-4 pb-0 rounded-xl mb-6" style={{ backgroundColor: colorScheme == 'dark' ? '#1E293B' : 'white' }}>
+        {labels.length > 1 ? (
           <>
             <Text className="dark:text-white text-lg font-semibold mb-2">Transaction Trends</Text>
-            <LineChart
-              data={{
-                labels,
-                datasets: [
-                  { data: debitData, color: () => '#EF4444' }, // Red for debit
-                  { data: creditData, color: () => '#10B981' }, // Green for credit
-                ],
-              }}
-              width={screenWidth * 0.9} // Adjusted for padding
-              height={280}
-              chartConfig={chartConfig}
-              bezier
-              transparent
-              style={{ borderRadius: 16, marginHorizontal: -13 }}
-            />
+            <ScrollView
+              horizontal
+              ref={scrollViewRef}
+              showsHorizontalScrollIndicator={false}
+              onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+              onScrollBeginDrag={() => setTooltip(null)} // Hide tooltip on scroll
+            >
+              <View style={{ position: 'relative' }}>
+                <LineChart
+                  data={{
+                    labels,
+                    datasets: [
+                      { data: debitData, color: () => '#EF4444' }, // Red for debit
+                      { data: creditData, color: () => '#10B981' }, // Green for credit
+                    ],
+                  }}
+                  width={chartWidth}
+                  height={280}
+                  chartConfig={chartConfig}
+                  bezier
+                  transparent
+                  style={{ borderRadius: 16, marginHorizontal: -13 }}
+                  onDataPointClick={({ x, y, value, dataset }) => {
+                    const type = dataset.color!(1) === '#EF4444' ? 'Debit' : 'Credit';
+
+                    if (tooltipTimeout.current) clearTimeout(tooltipTimeout.current);
+
+                    setTooltip({ x, y, value, type, visible: true });
+
+                    tooltipTimeout.current = setTimeout(() => {
+                      setTooltip(null);
+                    }, 3000);
+                  }}
+                />
+
+                {tooltip && tooltip.visible && (
+                  <View
+                    pointerEvents="none"
+                    style={{
+                      position: 'absolute',
+                      left: tooltip.x - 45,
+                      top: tooltip.y < 70 ? tooltip.y + 15 : tooltip.y - 65,
+                      backgroundColor: 'rgba(30, 41, 59, 0.95)',
+                      paddingVertical: 8,
+                      paddingHorizontal: 12,
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      borderColor: tooltip.type === 'Debit' ? '#EF4444' : '#10B981',
+                      alignItems: 'center',
+                      zIndex: 100,
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: 0.3,
+                      shadowRadius: 4.65,
+                      elevation: 8,
+                    }}
+                  >
+                    <Text style={{ color: 'white', fontSize: 13, fontWeight: 'bold' }}>
+                      {tooltip.type}
+                    </Text>
+                    <Text style={{ color: 'white', fontSize: 15, fontWeight: '900', marginTop: 2 }}>
+                      ₹{tooltip.value.toLocaleString('en-IN')}
+                    </Text>
+                    {/* Arrow */}
+                    <View
+                      style={{
+                        position: 'absolute',
+                        bottom: tooltip.y < 70 ? undefined : -6,
+                        top: tooltip.y < 70 ? -6 : undefined,
+                        width: 12,
+                        height: 12,
+                        backgroundColor: 'rgba(30, 41, 59, 0.95)',
+                        borderRightWidth: 1,
+                        borderBottomWidth: 1,
+                        borderTopWidth: 0,
+                        borderLeftWidth: 0,
+                        borderColor: tooltip.type === 'Debit' ? '#EF4444' : '#10B981',
+                        transform: [{ rotate: tooltip.y < 70 ? '225deg' : '45deg' }],
+                      }}
+                    />
+                  </View>
+                )}
+              </View>
+            </ScrollView>
           </>
 
         ) : (
@@ -215,9 +314,11 @@ export default function TransactionHistory() {
       </View>
 
 
-      {/* Transaction List */}
       <FlatList
         data={Object.keys(monthlyData).sort((a, b) => new Date(b).getTime() - new Date(a).getTime())}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+        }
         renderItem={({ item: monthYear }) => (
           <View className="mb-6">
             <View className='flex-row items-center'>
@@ -242,7 +343,7 @@ export default function TransactionHistory() {
         )}
         keyExtractor={(item) => item}
         showsVerticalScrollIndicator={false}
-        onEndReached={fetchExpenses}
+        onEndReached={() => fetchExpenses()}
         onEndReachedThreshold={0.5}
         ListFooterComponent={loading ? <ActivityIndicator size="large" /> : null}
       />

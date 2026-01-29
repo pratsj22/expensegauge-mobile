@@ -11,7 +11,7 @@ import Avatar from '@/components/Avatar';
 import { TextInput } from 'react-native';
 
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { useColorScheme, Modal, Platform } from 'react-native';
+import { useColorScheme, Modal, Platform, ActivityIndicator } from 'react-native';
 
 const UserProfileScreen: React.FC = () => {
   const router = useRouter()
@@ -24,10 +24,12 @@ const UserProfileScreen: React.FC = () => {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [newName, setNewName] = useState(user || '');
+  const [isSavingName, setIsSavingName] = useState(false);
 
   const handleSaveName = async () => {
     try {
       if (!newName.trim()) return Toast.error("Name cannot be empty");
+      setIsSavingName(true);
       const res = await api.put('/user/update-profile', { name: newName });
       // Update store
       setUser(res.data.name, email!, role!, res.data.profilePicture);
@@ -35,6 +37,8 @@ const UserProfileScreen: React.FC = () => {
       Toast.success("Name updated successfully");
     } catch (error) {
       Toast.error("Failed to update name");
+    } finally {
+      setIsSavingName(false);
     }
   }
 
@@ -132,18 +136,25 @@ const UserProfileScreen: React.FC = () => {
           <Avatar uri={profilePicture} name={user || 'User'} size={100} />
           <View className="flex-row items-center mt-3 gap-2">
             {isEditing ? (
-              <View className="flex-row items-center gap-2">
+              <View className="flex-row items-center gap-4">
                 <TextInput
                   value={newName}
                   onChangeText={setNewName}
+                  editable={!isSavingName}
                   className="border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-xl font-bold text-gray-900 dark:text-white min-w-[150px] text-center"
                 />
-                <TouchableOpacity onPress={handleSaveName}>
-                  <Feather name="check" size={20} color="#16a34a" />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => { setIsEditing(false); setNewName(user || '') }}>
-                  <Feather name="x" size={20} color="#dc2626" />
-                </TouchableOpacity>
+                {isSavingName ? (
+                  <ActivityIndicator size="small" color="#1e40af" />
+                ) : (
+                  <View className="flex-row items-center gap-3">
+                    <TouchableOpacity onPress={handleSaveName}>
+                      <Feather name="check" size={22} color="#16a34a" />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => { setIsEditing(false); setNewName(user || '') }}>
+                      <Feather name="x" size={22} color="#dc2626" />
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
             ) : (
               <>

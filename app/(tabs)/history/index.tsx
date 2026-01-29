@@ -164,35 +164,36 @@ export default function TransactionHistory() {
       stroke: '#ffa726',
     },
   };
-  const fetchExpenses = async () => {
-
-    if (loading || !hasMore) return;
+  const fetchExpenses = async (isRefresh = false) => {
+    if (loading || (!isRefresh && !hasMore)) return;
 
     setLoading(true);
-    setRefreshing(true)
+    if (isRefresh) setRefreshing(true);
+
     try {
       const limit = 10;
-      const response = await api.get(`/expense/get-expense/?offset=${offset}&limit=${limit}`);
+      const currentOffset = isRefresh ? 0 : offset;
+      const response = await api.get(`/expense/get-expense/?offset=${currentOffset}&limit=${limit}`);
 
       const fetched = response.data.expenses;
 
       setExpenses(prev => {
-        const merged = [...prev, ...fetched];
+        const merged = isRefresh ? fetched : [...prev, ...fetched];
         // Deduplicate and sort DESC (newest first)
-        const unique = merged.filter((item, index, self) =>
-          index === self.findIndex((t) => t._id === item._id)
+        const unique = merged.filter((item: Transaction, index: number, self: Transaction[]) =>
+          index === self.findIndex((t: Transaction) => t._id === item._id)
         );
-        const sorted = unique.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        const sorted = unique.sort((a: Transaction, b: Transaction) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
         // Update cache with the most recent items if we are at the top
-        if (offset === 0) {
+        if (currentOffset === 0) {
           setCachedExpenses(sorted.slice(0, 21), response.data.totalBalance);
         }
 
         return sorted;
       });
 
-      setOffset(prev => prev + limit);
+      setOffset(isRefresh ? limit : prev => prev + limit);
       setHasMore(response.data.hasMore);
     } catch (err) {
       console.error('Failed to fetch expenses', err);
@@ -201,8 +202,12 @@ export default function TransactionHistory() {
       setRefreshing(false)
     }
   };
+
+  const handleRefresh = () => {
+    fetchExpenses(true);
+  };
   useEffect(() => {
-    if (expenses.length < 10) {
+    if (expenses.length === 0) {
       fetchExpenses()
     }
   }, []);
@@ -210,7 +215,7 @@ export default function TransactionHistory() {
   return (
     <SafeAreaView className="flex-1 dark:bg-gray-900 p-5 pb-20">
       {/* Graph Section */}
-      <View className="p-4 pb-0 rounded-xl mb-6 overflow-hidden" style={{ backgroundColor: colorScheme == 'dark' ? '#1E293B' : 'white' }}>
+      <View className="p-4 pb-0 rounded-xl mb-6" style={{ backgroundColor: colorScheme == 'dark' ? '#1E293B' : 'white' }}>
         {labels.length > 1 ? (
           <>
             <Text className="dark:text-white text-lg font-semibold mb-2">Transaction Trends</Text>
@@ -310,7 +315,7 @@ export default function TransactionHistory() {
       <FlatList
         data={Object.keys(monthlyData).reverse()}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={fetchExpenses} />
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }
         renderItem={({ item: monthYear }) => (
           <View className="mb-6">
@@ -335,7 +340,7 @@ export default function TransactionHistory() {
         )}
         keyExtractor={(item) => item}
         showsVerticalScrollIndicator={false}
-        onEndReached={fetchExpenses}
+        onEndReached={() => fetchExpenses()}
         onEndReachedThreshold={0.5}
         ListFooterComponent={loading ? <ActivityIndicator size="large" /> : null}
       />
